@@ -3,7 +3,8 @@
 import { useState } from 'react';
 import { useStore } from '@/lib/store';
 import { contactName, formatDate } from '@/lib/utils';
-import { Plus, Search, Pencil, Trash2 } from 'lucide-react';
+import { Plus, Search, Pencil, Trash2, Upload, Users } from 'lucide-react';
+import Link from 'next/link';
 import type { Contact } from '@/types/database';
 
 export default function ContactsPage() {
@@ -117,8 +118,32 @@ export default function ContactsPage() {
         </table>
 
         {filtered.length === 0 && (
-          <div className="text-center py-8 text-stone-400 text-sm">
-            {search ? 'No contacts match your search' : 'No contacts yet'}
+          <div className="text-center py-12">
+            {search ? (
+              <p className="text-stone-400 text-sm">No contacts match &ldquo;{search}&rdquo;</p>
+            ) : (
+              <>
+                <Users className="w-8 h-8 text-stone-300 mx-auto mb-3" />
+                <p className="text-stone-500 text-sm font-medium mb-1">No contacts yet</p>
+                <p className="text-stone-400 text-xs mb-4">Add people to track preneed prospects and aftercare</p>
+                <div className="flex gap-2 justify-center">
+                  <button
+                    onClick={() => setShowNew(true)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-stone-900 text-white rounded-lg text-xs font-medium hover:bg-stone-800 transition-colors"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    Add Contact
+                  </button>
+                  <Link
+                    href="/import"
+                    className="flex items-center gap-1.5 px-3 py-1.5 border border-stone-200 text-stone-600 rounded-lg text-xs font-medium hover:bg-stone-50 transition-colors"
+                  >
+                    <Upload className="w-3.5 h-3.5" />
+                    Import CSV
+                  </Link>
+                </div>
+              </>
+            )}
           </div>
         )}
       </div>

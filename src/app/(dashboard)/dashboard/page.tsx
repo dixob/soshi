@@ -12,6 +12,8 @@ import {
   ArrowRight,
   Clock,
   Heart,
+  Plus,
+  Upload,
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -138,6 +140,9 @@ export default function DashboardPage() {
     return contacts.find((c) => c.id === p.contact_id);
   };
 
+  // Empty state — brand new account
+  const isEmpty = stats.totalProspects === 0 && stats.totalContacts === 0;
+
   return (
     <div className="max-w-5xl mx-auto space-y-6">
       <div>
@@ -146,6 +151,35 @@ export default function DashboardPage() {
           {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
         </p>
       </div>
+
+      {/* Welcome state */}
+      {isEmpty && (
+        <div className="bg-white rounded-xl border border-stone-200 p-8 text-center">
+          <div className="w-12 h-12 bg-stone-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Users className="w-6 h-6 text-stone-500" />
+          </div>
+          <h2 className="text-base font-semibold text-stone-900 mb-1">Your pipeline is empty</h2>
+          <p className="text-stone-500 text-sm mb-6 max-w-sm mx-auto">
+            Add your first contact to get started. You can type them in manually or import a CSV of your existing list.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-2 justify-center">
+            <Link
+              href="/contacts"
+              className="flex items-center justify-center gap-2 px-4 py-2 bg-stone-900 text-white rounded-lg text-sm font-medium hover:bg-stone-800 transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              Add First Contact
+            </Link>
+            <Link
+              href="/import"
+              className="flex items-center justify-center gap-2 px-4 py-2 border border-stone-200 text-stone-600 rounded-lg text-sm font-medium hover:bg-stone-50 transition-colors"
+            >
+              <Upload className="w-4 h-4" />
+              Import CSV
+            </Link>
+          </div>
+        </div>
+      )}
 
       {/* Top stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">

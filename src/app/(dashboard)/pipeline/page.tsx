@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useStore } from '@/lib/store';
 import { PIPELINE_STAGES, type PipelineStage, type PreneedProspect } from '@/types/database';
 import { cn, daysSince, daysSinceColor, formatDate, contactName } from '@/lib/utils';
-import { Plus, Phone, Calendar, GripVertical } from 'lucide-react';
+import { Plus, Phone, Calendar, GripVertical, LayoutGrid } from 'lucide-react';
 import ProspectDetail from './ProspectDetail';
 import NewProspectModal from './NewProspectModal';
 
@@ -66,6 +66,26 @@ export default function PipelinePage() {
           New Prospect
         </button>
       </div>
+
+      {/* Empty state — no prospects yet */}
+      {totalProspects === 0 && (
+        <div className="bg-white rounded-xl border border-stone-200 p-10 text-center mb-4">
+          <div className="w-12 h-12 bg-stone-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <LayoutGrid className="w-6 h-6 text-stone-400" />
+          </div>
+          <h2 className="text-base font-semibold text-stone-900 mb-1">No prospects yet</h2>
+          <p className="text-stone-500 text-sm mb-5 max-w-xs mx-auto">
+            Add a contact first, then convert them to a preneed prospect to start tracking.
+          </p>
+          <button
+            onClick={() => setShowNewModal(true)}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-stone-900 text-white rounded-lg text-sm font-medium hover:bg-stone-800 transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            Add First Prospect
+          </button>
+        </div>
+      )}
 
       {/* Kanban */}
       <div className="flex gap-3 overflow-x-auto pb-4 -mx-4 px-4 md:mx-0 md:px-0 hide-scrollbar snap-x snap-mandatory md:snap-none">

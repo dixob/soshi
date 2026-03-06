@@ -2,7 +2,8 @@ import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 
 // Vercel Cron calls this route — authorized via CRON_SECRET
-export const runtime = 'edge';
+// NOTE: Must use Node.js runtime (not edge) — supabase.auth.admin requires Node.js
+export const runtime = 'nodejs';
 
 export async function GET(request: Request) {
   // Verify cron secret
