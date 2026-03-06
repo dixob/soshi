@@ -57,27 +57,32 @@ export const useStore = create<AppState>((set, get) => ({
   aftercareCases: [],
 
   initialize: async () => {
-    const supabase = createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) { set({ loading: false }); return; }
+    try {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { set({ loading: false }); return; }
 
-    const { data: profile } = await supabase
-      .from('profiles').select('*').eq('user_id', user.id).single();
+      const { data: profile } = await supabase
+        .from('profiles').select('*').eq('user_id', user.id).single();
 
-    let org = null;
-    if (profile) {
-      const { data } = await supabase
-        .from('organizations').select('*').eq('id', profile.org_id).single();
-      org = data;
-    }
+      let org = null;
+      if (profile) {
+        const { data } = await supabase
+          .from('organizations').select('*').eq('id', profile.org_id).single();
+        org = data;
+      }
 
-    set({ user: { id: user.id, email: user.email! }, profile, org, loading: false });
+      set({ user: { id: user.id, email: user.email! }, profile, org, loading: false });
 
-    // Fetch data
-    if (profile) {
-      get().fetchContacts();
-      get().fetchProspects();
-      get().fetchAftercareCases();
+      // Fetch data
+      if (profile) {
+        get().fetchContacts();
+        get().fetchProspects();
+        get().fetchAftercareCases();
+      }
+    } catch (err) {
+      console.error('initialize error:', err);
+      set({ loading: false });
     }
   },
 
