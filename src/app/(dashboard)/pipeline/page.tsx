@@ -68,11 +68,11 @@ export default function PipelinePage() {
       </div>
 
       {/* Kanban */}
-      <div className="flex gap-3 overflow-x-auto pb-4 -mx-4 px-4 md:mx-0 md:px-0">
+      <div className="flex gap-3 overflow-x-auto pb-4 -mx-4 px-4 md:mx-0 md:px-0 hide-scrollbar snap-x snap-mandatory md:snap-none">
         {prospectsByStage.map(stage => (
           <div
             key={stage.key}
-            className="flex-shrink-0 w-64 md:w-auto md:flex-1 min-w-[240px]"
+            className="flex-shrink-0 w-[75vw] sm:w-64 md:w-auto md:flex-1 min-w-[240px] snap-center"
             onDragOver={handleDragOver}
             onDrop={(e) => handleDrop(e, stage.key)}
           >
@@ -134,7 +134,7 @@ function ProspectCard({
       draggable
       onDragStart={onDragStart}
       onClick={onClick}
-      className="bg-white rounded-md border border-stone-200 p-3 cursor-pointer hover:shadow-sm transition-shadow group"
+      className="bg-white rounded-md border border-stone-200 p-3 cursor-pointer hover:shadow-sm active:bg-stone-50 transition-all group"
     >
       <div className="flex items-start justify-between">
         <div className="min-w-0 flex-1">

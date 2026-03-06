@@ -247,12 +247,12 @@ function CaseCard({
 
                   {/* Actions */}
                   {tp.status === 'pending' && (
-                    <div className="flex items-center gap-1 flex-shrink-0">
+                    <div className="flex items-center gap-1.5 flex-shrink-0">
                       <input
                         value={actionNote[tp.id] || ''}
                         onChange={(e) => setActionNote({ ...actionNote, [tp.id]: e.target.value })}
                         placeholder="Note..."
-                        className="w-24 px-2 py-1 border border-stone-200 rounded text-xs focus:outline-none focus:ring-1 focus:ring-stone-900"
+                        className="w-20 sm:w-24 px-2 py-1.5 border border-stone-200 rounded text-xs focus:outline-none focus:ring-1 focus:ring-stone-900"
                         onClick={(e) => e.stopPropagation()}
                       />
                       <button
@@ -264,7 +264,7 @@ function CaseCard({
                             note: actionNote[tp.id] || null,
                           });
                         }}
-                        className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded transition-colors"
+                        className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-md transition-colors active:bg-emerald-100"
                         title="Mark complete"
                       >
                         <Check className="w-4 h-4" />
@@ -277,7 +277,7 @@ function CaseCard({
                             skip_reason: actionNote[tp.id] || 'Skipped',
                           });
                         }}
-                        className="p-1.5 text-stone-400 hover:bg-stone-50 rounded transition-colors"
+                        className="p-2 text-stone-400 hover:bg-stone-50 rounded-md transition-colors active:bg-stone-100"
                         title="Skip"
                       >
                         <SkipForward className="w-4 h-4" />

@@ -1,5 +1,5 @@
 {
-  "name": "soshi-build",
+  "name": "soshi_build",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -20,6 +20,7 @@
     "react": "^18",
     "react-dom": "^18",
     "tailwind-merge": "^3.5.0",
+    "resend": "^4.0.0",
     "zustand": "^5.0.11"
   },
   "devDependencies": {

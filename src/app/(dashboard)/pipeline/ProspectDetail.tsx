@@ -51,23 +51,23 @@ export default function ProspectDetail({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end bg-black/20">
+    <div className="fixed inset-0 z-50 flex justify-end bg-black/20" onClick={onClose}>
       <div className="w-full max-w-lg bg-white shadow-xl overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         {/* Header */}
-        <div className="sticky top-0 bg-white border-b border-stone-100 p-4 flex items-center justify-between z-10">
-          <div>
-            <h2 className="font-semibold text-stone-900">{name}</h2>
-            <p className="text-xs text-stone-400 capitalize">
+        <div className="sticky top-0 bg-white border-b border-stone-100 p-3 sm:p-4 flex items-center justify-between z-10">
+          <div className="min-w-0 flex-1">
+            <h2 className="font-semibold text-stone-900 truncate">{name}</h2>
+            <p className="text-xs text-stone-400 capitalize truncate">
               {prospect.disposition_pref} &middot; {prospect.lead_source.replace(/_/g, ' ')}
               {prospect.estimated_budget && ` &middot; ${prospect.estimated_budget}`}
             </p>
           </div>
-          <button onClick={onClose} className="p-1 text-stone-400 hover:text-stone-600">
+          <button onClick={onClose} className="p-2 -mr-1 text-stone-400 hover:text-stone-600">
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        <div className="p-4 space-y-5">
+        <div className="p-3 sm:p-4 space-y-5">
           {/* Contact info */}
           {prospect.contact && (
             <div className="flex gap-4 text-sm text-stone-600">
@@ -95,10 +95,10 @@ export default function ProspectDetail({
                   key={s.key}
                   onClick={() => moveProspect(prospect.id, s.key)}
                   className={cn(
-                    'px-2.5 py-1 rounded-md text-xs font-medium transition-colors border',
+                    'px-3 py-1.5 rounded-md text-xs font-medium transition-colors border',
                     prospect.stage === s.key
                       ? 'bg-stone-900 text-white border-stone-900'
-                      : 'bg-white text-stone-500 border-stone-200 hover:border-stone-400'
+                      : 'bg-white text-stone-500 border-stone-200 hover:border-stone-400 active:bg-stone-50'
                   )}
                 >
                   {s.label}
@@ -155,30 +155,32 @@ export default function ProspectDetail({
             </h3>
 
             {/* Add note */}
-            <div className="flex gap-2 mb-4">
-              <select
-                value={noteType}
-                onChange={(e) => setNoteType(e.target.value)}
-                className="px-2 py-1.5 border border-stone-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-stone-900"
-              >
-                <option value="note">Note</option>
-                <option value="call">Call</option>
-                <option value="email">Email</option>
-                <option value="meeting">Meeting</option>
-              </select>
-              <input
-                value={newNote}
-                onChange={(e) => setNewNote(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleAddNote()}
-                placeholder="Log an activity..."
-                className="flex-1 px-2 py-1.5 border border-stone-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-stone-900"
-              />
+            <div className="space-y-2 mb-4">
+              <div className="flex gap-2">
+                <select
+                  value={noteType}
+                  onChange={(e) => setNoteType(e.target.value)}
+                  className="px-2 py-2 border border-stone-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-stone-900"
+                >
+                  <option value="note">Note</option>
+                  <option value="call">Call</option>
+                  <option value="email">Email</option>
+                  <option value="meeting">Meeting</option>
+                </select>
+                <input
+                  value={newNote}
+                  onChange={(e) => setNewNote(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleAddNote()}
+                  placeholder="Log an activity..."
+                  className="flex-1 px-2 py-2 border border-stone-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-stone-900"
+                />
+              </div>
               <button
                 onClick={handleAddNote}
                 disabled={saving || !newNote.trim()}
-                className="px-3 py-1.5 bg-stone-900 text-white rounded-md text-xs font-medium hover:bg-stone-800 disabled:opacity-50"
+                className="w-full sm:w-auto px-4 py-2 bg-stone-900 text-white rounded-md text-sm font-medium hover:bg-stone-800 disabled:opacity-50"
               >
-                Add
+                Add Activity
               </button>
             </div>
 
