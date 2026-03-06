@@ -92,7 +92,7 @@ export async function GET(request: Request) {
       }
 
       // Build email HTML
-      const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://soshi.app';
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://trysoshi.com';
       const orgName = (profile as any).organization?.name || 'Your Funeral Home';
       const html = buildDigestEmail({
         orgName,
@@ -112,7 +112,7 @@ export async function GET(request: Request) {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          from: process.env.RESEND_FROM_EMAIL || 'Soshi <digest@soshi.app>',
+          from: process.env.RESEND_FROM_EMAIL || 'Soshi <digest@trysoshi.com>',
           to: authUser.user.email,
           subject: `Soshi Daily Digest — ${totalItems} item${totalItems === 1 ? '' : 's'} need attention`,
           html,
