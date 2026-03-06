@@ -149,6 +149,11 @@ create policy "Users access org touchpoints" on aftercare_touchpoints
   ));
 
 -- Auto-create profile + org on signup
+-- IMPORTANT: `set search_path = public` is required on all security definer functions.
+-- Without it, Postgres uses pg_catalog as the default search path when running as the
+-- function owner (a superuser), which means it can't find tables in the public schema.
+-- Symptom: "Database error saving new user" → auth user creation rolled back → magic
+-- link code exchange fails → user redirected back to login and hits email rate limit.
 create or replace function handle_new_user()
 returns trigger as $$
 declare
@@ -159,7 +164,7 @@ begin
   values (new.id, new_org_id, coalesce(new.raw_user_meta_data->>'full_name', ''));
   return new;
 end;
-$$ language plpgsql security definer;
+$$ language plpgsql security definer set search_path = public;
 
 create trigger on_auth_user_created
   after insert on auth.users
