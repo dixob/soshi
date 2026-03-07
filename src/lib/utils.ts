@@ -8,7 +8,14 @@ export function cn(...inputs: ClassValue[]) {
 
 export function daysSince(dateStr: string | null): number | null {
   if (!dateStr) return null;
-  return differenceInDays(new Date(), parseISO(dateStr));
+  // BUG-020: Compare date-only strings using local dates to avoid timezone off-by-one.
+  // parseISO('2026-03-07') returns midnight UTC, but new Date() is local time,
+  // causing differenceInDays to be off by 1 near midnight in non-UTC timezones.
+  const today = new Date();
+  const localToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const parsed = parseISO(dateStr);
+  const localParsed = new Date(parsed.getUTCFullYear(), parsed.getUTCMonth(), parsed.getUTCDate());
+  return differenceInDays(localToday, localParsed);
 }
 
 export function daysSinceColor(days: number | null): string {
@@ -25,7 +32,9 @@ export function formatDate(dateStr: string | null): string {
 
 export function formatRelative(dateStr: string | null): string {
   if (!dateStr) return 'Never';
-  const days = differenceInDays(new Date(), parseISO(dateStr));
+  // BUG-020: Use daysSince for consistent timezone-safe comparison
+  const days = daysSince(dateStr);
+  if (days === null) return 'Never';
   if (days === 0) return 'Today';
   if (days === 1) return 'Yesterday';
   if (days < 0) return `In ${Math.abs(days)}d`;

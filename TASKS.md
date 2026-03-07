@@ -171,22 +171,22 @@ Full report: `QA-BUG-REPORT.md` (75 bugs across P0/P1/P2/P3)
 - [x] BUG-016: Split profiles RLS into SELECT (org-wide) / INSERT+UPDATE+DELETE (own-row)
 - [x] BUG-017: Split organizations RLS into SELECT / INSERT+UPDATE+DELETE (owner restriction)
 
-**P2 — Medium (4/30 complete, 26 remaining):**
+**P2 — Medium (9/30 complete, 21 remaining):**
 - [x] BUG-028: Fixed midnight-crossing window check in digest time comparison
 - [x] BUG-031: Added `escapeHtml()` helper for XSS prevention in digest email
 - [x] BUG-032: Added saving/disabled state to settings save button
 - [x] BUG-033: Changed sidebar logo link from `/` to `/dashboard`
-- [ ] BUG-018: Add duplicate conversion guard to convertToProspect()
-- [ ] BUG-019: Add org_id filter on fetch queries (defense-in-depth)
-- [ ] BUG-020: Fix timezone off-by-one for follow-up date comparisons
-- [ ] BUG-021: Fix contact update propagation to prospect cards
-- [ ] BUG-022: Fix Excel formula cells producing [object Object]
+- [x] BUG-018: Added duplicate conversion guard to convertToProspect() (prevents double prospects)
+- [x] BUG-019: Added org_id filter on all fetch queries (defense-in-depth, supplements RLS)
+- [x] BUG-020: Fixed timezone off-by-one in daysSince/formatRelative (UTC date-only vs local time)
+- [x] BUG-021: Added contact update propagation to nested prospect/aftercare contact objects
+- [x] BUG-022: Added cellToString() helper to extract display values from Excel formula/rich-text/hyperlink cells
 - [ ] BUG-023–027, 029, 030, 034–047: See QA-BUG-REPORT.md
 
 **P3 — Low (0/28, deferred):**
 - [ ] BUG-048–075: See QA-BUG-REPORT.md
 
-**Files modified (12):** schema.sql, middleware.ts, store.ts, database.ts, WelcomeTour.tsx, pipeline/page.tsx, settings/page.tsx, import/page.tsx, digest/route.ts, Sidebar.tsx, vercel.json, auth/callback/page.tsx
+**Files modified (14):** schema.sql, middleware.ts, store.ts, database.ts, WelcomeTour.tsx, pipeline/page.tsx, settings/page.tsx, import/page.tsx, digest/route.ts, Sidebar.tsx, vercel.json, auth/callback/page.tsx, utils.ts, parse-excel.ts
 
 ⚠️ **Supabase action required:** Re-run `schema.sql` in Supabase SQL Editor to apply schema changes (new columns on activities/aftercare_touchpoints, updated RLS policies).
 
