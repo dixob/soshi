@@ -8,10 +8,22 @@ import Link from 'next/link';
 import type { Contact } from '@/types/database';
 
 export default function ContactsPage() {
-  const { contacts, createContact, updateContact, deleteContact } = useStore();
+  const { contacts, prospects, aftercareCases, createContact, updateContact, deleteContact } = useStore();
   const [search, setSearch] = useState('');
   const [editing, setEditing] = useState<string | null>(null);
   const [showNew, setShowNew] = useState(false);
+
+  function handleDelete(id: string) {
+    const linkedProspects = prospects.filter(p => p.contact_id === id).length;
+    const linkedCases = aftercareCases.filter(ac => ac.contact_id === id).length;
+    const warnings: string[] = [];
+    if (linkedProspects > 0) warnings.push(`${linkedProspects} prospect${linkedProspects > 1 ? 's' : ''}`);
+    if (linkedCases > 0) warnings.push(`${linkedCases} aftercare case${linkedCases > 1 ? 's' : ''}`);
+    const msg = warnings.length > 0
+      ? `This contact has ${warnings.join(' and ')} that will also be permanently deleted. Continue?`
+      : 'Delete this contact?';
+    if (confirm(msg)) deleteContact(id);
+  }
 
   const filtered = contacts.filter(c => {
     const q = search.toLowerCase();
@@ -103,7 +115,7 @@ export default function ContactsPage() {
                           <Pencil className="w-3.5 h-3.5" />
                         </button>
                         <button
-                          onClick={() => { if (confirm('Delete this contact?')) deleteContact(c.id); }}
+                          onClick={() => handleDelete(c.id)}
                           className="p-1 text-stone-400 hover:text-red-600"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
@@ -164,6 +176,8 @@ function ContactForm({
   const [lastName, setLastName] = useState(initial?.last_name || '');
   const [phone, setPhone] = useState(initial?.phone || '');
   const [email, setEmail] = useState(initial?.email || '');
+  const [address, setAddress] = useState(initial?.address || '');
+  const [commPref, setCommPref] = useState(initial?.communication_pref || '');
   const [notes, setNotes] = useState(initial?.relationship_notes || '');
   const [saving, setSaving] = useState(false);
 
@@ -175,6 +189,8 @@ function ContactForm({
       last_name: lastName,
       phone: phone || null,
       email: email || null,
+      address: address || null,
+      communication_pref: commPref || null,
       relationship_notes: notes || null,
     });
     setSaving(false);
@@ -187,6 +203,17 @@ function ContactForm({
         <input value={lastName} onChange={(e) => setLastName(e.target.value)} placeholder="Last Name" className="px-2 py-1.5 border border-stone-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-stone-900" />
         <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Phone" type="tel" className="px-2 py-1.5 border border-stone-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-stone-900" />
         <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" type="email" className="px-2 py-1.5 border border-stone-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-stone-900" />
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+        <input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Address" className="px-2 py-1.5 border border-stone-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-stone-900" />
+        <select value={commPref} onChange={(e) => setCommPref(e.target.value)} className="px-2 py-1.5 border border-stone-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-stone-900">
+          <option value="">Communication preference</option>
+          <option value="phone">Phone</option>
+          <option value="email">Email</option>
+          <option value="text">Text</option>
+          <option value="mail">Mail</option>
+          <option value="no_preference">No preference</option>
+        </select>
       </div>
       <input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Relationship notes" className="w-full px-2 py-1.5 border border-stone-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-stone-900" />
       <div className="flex gap-2">

@@ -160,7 +160,7 @@ function ProspectCard({
         <div className="min-w-0 flex-1">
           <p className="text-sm font-medium text-stone-900 truncate">{name}</p>
           <p className="text-xs text-stone-400 capitalize mt-0.5">
-            {prospect.disposition_pref} &middot; {prospect.lead_source.replace('_', ' ')}
+            {prospect.disposition_pref} &middot; {prospect.lead_source.replaceAll('_', ' ')}
           </p>
         </div>
         <GripVertical className="w-4 h-4 text-stone-300 opacity-0 group-hover:opacity-100 flex-shrink-0 mt-0.5" />

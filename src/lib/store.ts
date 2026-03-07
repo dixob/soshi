@@ -3,6 +3,7 @@ import type { Contact, PreneedProspect, AftercareCase, Activity, AftercareTouchp
 import { createClient } from './supabase';
 import { DEFAULT_TOUCHPOINTS } from '@/types/database';
 import { addDays, format } from 'date-fns';
+import { emitToast } from './toast-events';
 
 interface AppState {
   // Auth
@@ -90,6 +91,7 @@ export const useStore = create<AppState>((set, get) => ({
     const supabase = createClient();
     await supabase.auth.signOut();
     set({ user: null, profile: null, org: null, contacts: [], prospects: [], aftercareCases: [] });
+    window.location.href = '/login';
   },
 
   // --- Contacts ---
@@ -106,21 +108,31 @@ export const useStore = create<AppState>((set, get) => ({
     if (!org) return null;
     const { data: contact, error } = await supabase
       .from('contacts').insert({ ...data, org_id: org.id }).select().single();
-    if (error) { console.error(error); return null; }
+    if (error) { console.error(error); emitToast('Failed to create contact', 'error'); return null; }
     set({ contacts: [contact, ...get().contacts] });
+    emitToast('Contact created', 'success');
     return contact;
   },
 
   updateContact: async (id, data) => {
     const supabase = createClient();
-    await supabase.from('contacts').update(data).eq('id', id);
+    const { error } = await supabase.from('contacts').update(data).eq('id', id);
+    if (error) { console.error(error); emitToast('Failed to update contact', 'error'); return; }
     set({ contacts: get().contacts.map(c => c.id === id ? { ...c, ...data } : c) });
+    emitToast('Contact updated', 'success');
   },
 
   deleteContact: async (id) => {
     const supabase = createClient();
-    await supabase.from('contacts').delete().eq('id', id);
+    const { error } = await supabase.from('contacts').delete().eq('id', id);
+    if (error) { console.error(error); emitToast('Failed to delete contact', 'error'); return; }
     set({ contacts: get().contacts.filter(c => c.id !== id) });
+    // Also remove local prospects/aftercare linked to this contact
+    set({
+      prospects: get().prospects.filter(p => p.contact_id !== id),
+      aftercareCases: get().aftercareCases.filter(ac => ac.contact_id !== id),
+    });
+    emitToast('Contact deleted', 'success');
   },
 
   // --- Prospects ---
@@ -142,7 +154,7 @@ export const useStore = create<AppState>((set, get) => ({
       .insert({ ...data, org_id: org.id })
       .select('*, contact:contacts(*)')
       .single();
-    if (error) { console.error(error); return null; }
+    if (error) { console.error(error); emitToast('Failed to create prospect', 'error'); return null; }
 
     // Log creation activity
     await supabase.from('activities').insert({
@@ -154,17 +166,20 @@ export const useStore = create<AppState>((set, get) => ({
     });
 
     set({ prospects: [prospect, ...get().prospects] });
+    emitToast('Prospect created', 'success');
     return prospect;
   },
 
   updateProspect: async (id, data) => {
     const supabase = createClient();
-    await supabase.from('preneed_prospects').update(data).eq('id', id);
+    const { error } = await supabase.from('preneed_prospects').update(data).eq('id', id);
+    if (error) { console.error(error); emitToast('Failed to update prospect', 'error'); return; }
     set({
       prospects: get().prospects.map(p =>
         p.id === id ? { ...p, ...data } : p
       ),
     });
+    emitToast('Prospect updated', 'success');
   },
 
   moveProspect: async (id, stage) => {
@@ -173,6 +188,7 @@ export const useStore = create<AppState>((set, get) => ({
     const prospect = get().prospects.find(p => p.id === id);
     if (!prospect || !user) return;
 
+    const stageLabel = stage.replaceAll('_', ' ');
     const updates: Partial<PreneedProspect> = {
       stage: stage as PreneedProspect['stage'],
       last_contact_date: format(new Date(), 'yyyy-MM-dd'),
@@ -185,7 +201,7 @@ export const useStore = create<AppState>((set, get) => ({
       contact_id: prospect.contact_id,
       user_id: user.id,
       activity_type: 'stage_change',
-      note: `Moved to ${stage.replace('_', ' ')}`,
+      note: `Moved to ${stageLabel}`,
     });
 
     set({
@@ -193,6 +209,7 @@ export const useStore = create<AppState>((set, get) => ({
         p.id === id ? { ...p, ...updates } : p
       ),
     });
+    emitToast(`Moved to ${stageLabel}`, 'success');
   },
 
   // --- Activities ---
@@ -251,7 +268,7 @@ export const useStore = create<AppState>((set, get) => ({
       .insert({ org_id: org.id, contact_id: contactId, deceased_name: deceasedName, service_date: serviceDate })
       .select('*, contact:contacts(*)')
       .single();
-    if (error) { console.error(error); return null; }
+    if (error) { console.error(error); emitToast('Failed to create aftercare case', 'error'); return null; }
 
     // Auto-generate touchpoints
     const sDate = new Date(serviceDate);
@@ -267,12 +284,14 @@ export const useStore = create<AppState>((set, get) => ({
 
     const fullCase = { ...ac, touchpoints: tps || [] };
     set({ aftercareCases: [fullCase, ...get().aftercareCases] });
+    emitToast('Aftercare case created with 6 touchpoints', 'success');
     return fullCase;
   },
 
   updateTouchpoint: async (id, data) => {
     const supabase = createClient();
-    await supabase.from('aftercare_touchpoints').update(data).eq('id', id);
+    const { error } = await supabase.from('aftercare_touchpoints').update(data).eq('id', id);
+    if (error) { console.error(error); emitToast('Failed to update touchpoint', 'error'); return; }
     set({
       aftercareCases: get().aftercareCases.map(ac => ({
         ...ac,
@@ -281,13 +300,15 @@ export const useStore = create<AppState>((set, get) => ({
         ),
       })),
     });
+    const action = data.status === 'completed' ? 'completed' : data.status === 'skipped' ? 'skipped' : 'updated';
+    emitToast(`Touchpoint ${action}`, 'success');
   },
 
   convertToProspect: async (caseId) => {
     const ac = get().aftercareCases.find(c => c.id === caseId);
     if (!ac) return;
 
-    // Create prospect from aftercare contact
+    // Create prospect from aftercare contact (createProspect already emits its own toast)
     await get().createProspect({
       contact_id: ac.contact_id,
       stage: 'prospect',
@@ -302,6 +323,7 @@ export const useStore = create<AppState>((set, get) => ({
         c.id === caseId ? { ...c, status: 'converted' as const } : c
       ),
     });
+    emitToast('Aftercare case converted to prospect', 'success');
   },
 
   // --- Org/Profile ---
@@ -309,15 +331,19 @@ export const useStore = create<AppState>((set, get) => ({
     const supabase = createClient();
     const { org } = get();
     if (!org) return;
-    await supabase.from('organizations').update(data).eq('id', org.id);
+    const { error } = await supabase.from('organizations').update(data).eq('id', org.id);
+    if (error) { console.error(error); emitToast('Failed to update organization', 'error'); return; }
     set({ org: { ...org, ...data } });
+    emitToast('Organization updated', 'success');
   },
 
   updateProfile: async (data) => {
     const supabase = createClient();
     const { profile } = get();
     if (!profile) return;
-    await supabase.from('profiles').update(data).eq('id', profile.id);
+    const { error } = await supabase.from('profiles').update(data).eq('id', profile.id);
+    if (error) { console.error(error); emitToast('Failed to update profile', 'error'); return; }
     set({ profile: { ...profile, ...data } });
+    emitToast('Settings saved', 'success');
   },
 }));

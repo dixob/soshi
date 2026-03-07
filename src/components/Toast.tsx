@@ -1,7 +1,8 @@
 'use client';
 
-import { createContext, useCallback, useContext, useReducer } from 'react';
+import { createContext, useCallback, useContext, useEffect, useReducer } from 'react';
 import { X, CheckCircle, AlertCircle, Info } from 'lucide-react';
+import { onToast } from '@/lib/toast-events';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -49,6 +50,9 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   const success = useCallback((message: string) => toast(message, 'success'), [toast]);
   const error = useCallback((message: string) => toast(message, 'error'), [toast]);
   const info = useCallback((message: string) => toast(message, 'info'), [toast]);
+
+  // Bridge: let the Zustand store (non-React) emit toasts via event bus
+  useEffect(() => onToast((msg, type) => toast(msg, type)), [toast]);
 
   return (
     <ToastContext.Provider value={{ toast, success, error, info }}>

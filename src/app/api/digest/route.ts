@@ -72,18 +72,16 @@ export async function GET(request: Request) {
         .neq('stage', 'converted')
         .lt('last_contact_date', thirtyDaysAgo);
 
-      // Fetch due aftercare touchpoints
+      // Fetch due aftercare touchpoints (filtered to this org via join)
       const { data: dueTouchpoints } = await supabase
         .from('aftercare_touchpoints')
-        .select('*, case:aftercare_cases(*, contact:contacts(*))')
+        .select('*, case:aftercare_cases!inner(*, contact:contacts(*))')
         .eq('status', 'pending')
+        .eq('case.org_id', orgId)
         .lte('due_date', today)
         .order('due_date', { ascending: true });
 
-      // Filter touchpoints to this org
-      const orgTouchpoints = (dueTouchpoints || []).filter(
-        (tp: any) => tp.case?.org_id === orgId
-      );
+      const orgTouchpoints = dueTouchpoints || [];
 
       // Skip if nothing to report
       const totalItems = (dueProspects?.length || 0) + (overdueProspects?.length || 0) + orgTouchpoints.length;

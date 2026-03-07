@@ -61,21 +61,34 @@ export default function ImportPage() {
     let imported = 0;
     let errors = 0;
 
+    // Build all valid contacts first
+    const validContacts: Record<string, string>[] = [];
     for (const row of rows) {
-      try {
-        const contact: Record<string, string> = {};
-        for (const [target, source] of Object.entries(mappings)) {
-          if (source && row[source]) {
-            contact[target] = row[source].trim();
-          }
+      const contact: Record<string, string> = {};
+      for (const [target, source] of Object.entries(mappings)) {
+        if (source && row[source]) {
+          contact[target] = row[source].trim();
         }
-        if (!contact.first_name) { errors++; continue; }
-        await createContact(contact);
-        imported++;
-      } catch {
-        errors++;
       }
+      if (!contact.first_name) { errors++; continue; }
+      validContacts.push(contact);
     }
+
+    // Batch insert via Supabase (bypasses store's one-at-a-time insert)
+    const { createClient } = await import('@/lib/supabase');
+    const supabase = createClient();
+    const org = useStore.getState().org;
+    if (!org) { setImporting(false); return; }
+
+    const BATCH_SIZE = 50;
+    for (let i = 0; i < validContacts.length; i += BATCH_SIZE) {
+      const batch = validContacts.slice(i, i + BATCH_SIZE).map(c => ({ ...c, org_id: org.id }));
+      const { error } = await supabase.from('contacts').insert(batch);
+      if (error) { errors += batch.length; } else { imported += batch.length; }
+    }
+
+    // Refresh contacts in store
+    useStore.getState().fetchContacts();
 
     setResult({ imported, errors });
     setImporting(false);

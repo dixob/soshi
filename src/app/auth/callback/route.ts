@@ -1,13 +1,9 @@
-import { NextResponse } from 'next/server';
-import { createServerSupabase } from '@/lib/supabase-server';
+import { createServerClient } from '@supabase/ssr';
+import { NextResponse, type NextRequest } from 'next/server';
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get('code');
-
-  // Supabase redirects here with ?error=... when something goes wrong upstream
-  // (e.g. expired link, invalid token, or a database trigger failure on the
-  // auth.users insert that rolls back the entire user creation).
   const errorParam = searchParams.get('error');
   const errorDescription = searchParams.get('error_description');
 
@@ -16,27 +12,41 @@ export async function GET(request: Request) {
     const loginUrl = new URL('/login', origin);
     loginUrl.searchParams.set('error', errorParam);
     if (errorDescription) loginUrl.searchParams.set('error_description', errorDescription);
-    return NextResponse.redirect(loginUrl.toString());
+    return NextResponse.redirect(loginUrl);
   }
 
   if (code) {
-    const supabase = createServerSupabase();
+    const redirectResponse = NextResponse.redirect(new URL('/dashboard', origin));
+
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll() {
+            return request.cookies.getAll();
+          },
+          setAll(cookiesToSet) {
+            cookiesToSet.forEach(({ name, value, options }) =>
+              redirectResponse.cookies.set(name, value, options ?? {})
+            );
+          },
+        },
+      }
+    );
+
     const { error } = await supabase.auth.exchangeCodeForSession(code);
 
     if (!error) {
-      return NextResponse.redirect(`${origin}/dashboard`);
+      return redirectResponse;
     }
 
-    // exchangeCodeForSession can fail if:
-    // - the code verifier cookie is missing (different browser / incognito)
-    // - the code was already used (user clicked the link twice)
-    // - the Supabase project's auth settings have mismatched redirect URLs
     console.error('[auth/callback] exchangeCodeForSession failed:', error.message);
     const loginUrl = new URL('/login', origin);
     loginUrl.searchParams.set('error', 'auth_failed');
-    return NextResponse.redirect(loginUrl.toString());
+    return NextResponse.redirect(loginUrl);
   }
 
-  // No code, no error — shouldn't normally happen; send to login
-  return NextResponse.redirect(`${origin}/login`);
+  console.warn('[auth/callback] No code or error param in callback URL');
+  return NextResponse.redirect(new URL('/login', origin));
 }
