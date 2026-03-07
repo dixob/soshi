@@ -58,6 +58,7 @@ export const useStore = create<AppState>((set, get) => ({
   aftercareCases: [],
 
   initialize: async () => {
+    set({ loading: true });
     try {
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
