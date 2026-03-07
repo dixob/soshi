@@ -63,14 +63,18 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith('/login') ||
     pathname.startsWith('/signup') ||
     pathname.startsWith('/auth') ||
-    pathname.startsWith('/onboarding') ||
     pathname.startsWith('/about') ||
     pathname.startsWith('/contact') ||
+    pathname.startsWith('/api/') ||
     pathname === '/';
 
   if (!user && !isPublicPath) {
     const loginUrl = request.nextUrl.clone();
     loginUrl.pathname = '/login';
+    // Preserve the original URL so we can redirect back after login
+    if (pathname !== '/dashboard') {
+      loginUrl.searchParams.set('redirectTo', pathname);
+    }
     return NextResponse.redirect(loginUrl);
   }
 

@@ -34,15 +34,26 @@ export async function GET(request: Request) {
       const userTz = profile.timezone || 'America/New_York';
       const digestTime = profile.digest_time || '08:00';
       const now = new Date();
-      const userTime = new Date(now.toLocaleString('en-US', { timeZone: userTz }));
-      const currentHour = userTime.getHours();
-      const currentMinute = userTime.getMinutes();
+
+      // BUG-012: Use Intl.DateTimeFormat instead of toLocaleString round-trip
+      const dtf = new Intl.DateTimeFormat('en-US', {
+        timeZone: userTz,
+        hour: 'numeric',
+        minute: 'numeric',
+        hour12: false,
+      });
+      const parts = dtf.formatToParts(now);
+      const currentHour = parseInt(parts.find(p => p.type === 'hour')?.value || '0');
+      const currentMinute = parseInt(parts.find(p => p.type === 'minute')?.value || '0');
       const [targetHour, targetMinute] = digestTime.split(':').map(Number);
 
       // Only send if within 30-minute window of their digest time
+      // BUG-028: Handle midnight crossing (e.g. target 23:45, current 00:15)
       const currentMinutes = currentHour * 60 + currentMinute;
       const targetMinutes = targetHour * 60 + targetMinute;
-      if (Math.abs(currentMinutes - targetMinutes) > 30) {
+      let diff = Math.abs(currentMinutes - targetMinutes);
+      if (diff > 720) diff = 1440 - diff; // wrap around midnight
+      if (diff > 30) {
         continue;
       }
 
@@ -132,6 +143,16 @@ export async function GET(request: Request) {
   return NextResponse.json({ results, timestamp: new Date().toISOString() });
 }
 
+// BUG-031: Escape user-controlled strings to prevent XSS in email HTML
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 // --- Email template ---
 function buildDigestEmail({
   orgName,
@@ -150,7 +171,7 @@ function buildDigestEmail({
   appUrl: string;
   today: string;
 }) {
-  const contactName = (c: any) => c ? `${c.first_name || ''} ${c.last_name || ''}`.trim() : 'Unknown';
+  const contactName = (c: any) => escapeHtml(c ? `${c.first_name || ''} ${c.last_name || ''}`.trim() : 'Unknown');
 
   const prospectRows = dueProspects
     .map((p) => {
@@ -160,7 +181,7 @@ function buildDigestEmail({
         <tr>
           <td style="padding:8px 12px;border-bottom:1px solid #f5f5f4;">
             <a href="${appUrl}/pipeline" style="color:#1c1917;text-decoration:none;font-weight:500;">${name}</a>
-            ${p.followup_note ? `<br><span style="color:#a8a29e;font-size:12px;">${p.followup_note}</span>` : ''}
+            ${p.followup_note ? `<br><span style="color:#a8a29e;font-size:12px;">${escapeHtml(p.followup_note)}</span>` : ''}
           </td>
           <td style="padding:8px 12px;border-bottom:1px solid #f5f5f4;text-align:right;">
             <span style="background:${isOverdue ? '#fef2f2' : '#fefce8'};color:${isOverdue ? '#dc2626' : '#ca8a04'};padding:2px 8px;border-radius:4px;font-size:12px;font-weight:500;">
@@ -195,13 +216,13 @@ function buildDigestEmail({
 
   const touchpointRows = dueTouchpoints
     .map((tp: any) => {
-      const caseName = tp.case?.deceased_name || 'Unknown';
+      const caseName = escapeHtml(tp.case?.deceased_name || 'Unknown');
       const familyName = contactName(tp.case?.contact);
       const isOverdue = tp.due_date < today;
       return `
         <tr>
           <td style="padding:8px 12px;border-bottom:1px solid #f5f5f4;">
-            <a href="${appUrl}/aftercare" style="color:#1c1917;text-decoration:none;font-weight:500;">${tp.label}</a>
+            <a href="${appUrl}/aftercare" style="color:#1c1917;text-decoration:none;font-weight:500;">${escapeHtml(tp.label)}</a>
             <br><span style="color:#a8a29e;font-size:12px;">${caseName} — ${familyName}</span>
           </td>
           <td style="padding:8px 12px;border-bottom:1px solid #f5f5f4;text-align:right;">
@@ -222,12 +243,12 @@ function buildDigestEmail({
     <!-- Header -->
     <div style="background:#1c1917;color:white;padding:20px 24px;border-radius:12px 12px 0 0;">
       <h1 style="margin:0;font-size:18px;font-weight:600;">Soshi</h1>
-      <p style="margin:4px 0 0;font-size:13px;color:#a8a29e;">${orgName} — Daily Digest</p>
+      <p style="margin:4px 0 0;font-size:13px;color:#a8a29e;">${escapeHtml(orgName)} — Daily Digest</p>
     </div>
 
     <div style="background:white;padding:24px;border:1px solid #e7e5e4;border-top:none;border-radius:0 0 12px 12px;">
       <p style="margin:0 0 20px;color:#44403c;font-size:14px;">
-        Good morning, ${userName}. Here&apos;s what needs your attention today.
+        Good morning, ${escapeHtml(userName)}. Here&apos;s what needs your attention today.
       </p>
 
       ${(prospectRows || overdueRows) ? `

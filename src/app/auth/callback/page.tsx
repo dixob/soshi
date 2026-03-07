@@ -43,8 +43,8 @@ function CallbackHandler() {
       // No code and no error — check if there's already a session
       // (handles edge cases like implicit flow or repeat visits).
       const supabase = createClient();
-      supabase.auth.getSession().then(({ data: { session } }) => {
-        window.location.href = session ? '/dashboard' : '/login';
+      supabase.auth.getUser().then(({ data: { user } }) => {
+        window.location.href = user ? '/dashboard' : '/login';
       });
       return;
     }

@@ -111,7 +111,7 @@ export default function PipelinePage() {
             onDragOver={handleDragOver}
             onDrop={(e) => handleDrop(e, stage.key)}
           >
-            <div className={cn('rounded-lg border p-2', stage.color)}>
+            <div className={cn('rounded-lg border p-2', stage.bg, stage.border)}>
               <div className="flex items-center justify-between px-2 py-1 mb-2">
                 <h2 className="text-xs font-semibold text-stone-600 uppercase tracking-wide">
                   {stage.label}

@@ -20,6 +20,7 @@ create table profiles (
   role text not null default 'owner',
   digest_time text not null default '08:00',
   timezone text not null default 'America/New_York',
+  preferences jsonb not null default '{}'::jsonb,
   created_at timestamptz default now()
 );
 
@@ -59,8 +60,10 @@ create table preneed_prospects (
 );
 
 -- Activity log (append-only)
+-- BUG-014: Added org_id to avoid nested subquery in RLS
 create table activities (
   id uuid primary key default uuid_generate_v4(),
+  org_id uuid references organizations(id) on delete cascade not null,
   prospect_id uuid references preneed_prospects(id) on delete cascade,
   contact_id uuid references contacts(id) on delete cascade not null,
   user_id uuid references auth.users(id) on delete set null,
@@ -83,8 +86,10 @@ create table aftercare_cases (
 );
 
 -- Aftercare Touchpoints
+-- BUG-015: Added org_id to avoid nested subquery in RLS
 create table aftercare_touchpoints (
   id uuid primary key default uuid_generate_v4(),
+  org_id uuid references organizations(id) on delete cascade not null,
   case_id uuid references aftercare_cases(id) on delete cascade not null,
   touchpoint_type text not null default 'phone_call'
     check (touchpoint_type in ('phone_call','email','card','task')),
@@ -103,9 +108,11 @@ create index idx_contacts_org on contacts(org_id);
 create index idx_prospects_org on preneed_prospects(org_id);
 create index idx_prospects_stage on preneed_prospects(org_id, stage);
 create index idx_prospects_followup on preneed_prospects(next_followup_date) where next_followup_date is not null;
+create index idx_activities_org on activities(org_id);
 create index idx_activities_prospect on activities(prospect_id);
 create index idx_activities_contact on activities(contact_id);
 create index idx_aftercare_org on aftercare_cases(org_id);
+create index idx_touchpoints_org on aftercare_touchpoints(org_id);
 create index idx_touchpoints_case on aftercare_touchpoints(case_id);
 create index idx_touchpoints_due on aftercare_touchpoints(due_date, status) where status = 'pending';
 
@@ -119,11 +126,31 @@ alter table aftercare_cases enable row level security;
 alter table aftercare_touchpoints enable row level security;
 
 -- RLS Policies: users can only access data from their own org
+-- BUG-017: Split org policy — all members can SELECT, only owners can UPDATE/DELETE
 create policy "Users see own org" on organizations
-  for all using (id in (select org_id from profiles where user_id = auth.uid()));
+  for select using (id in (select org_id from profiles where user_id = auth.uid()));
 
-create policy "Users see own profile" on profiles
-  for all using (user_id = auth.uid());
+create policy "Users insert org" on organizations
+  for insert with check (true);
+
+create policy "Owners update own org" on organizations
+  for update using (id in (select org_id from profiles where user_id = auth.uid() and role = 'owner'));
+
+create policy "Owners delete own org" on organizations
+  for delete using (id in (select org_id from profiles where user_id = auth.uid() and role = 'owner'));
+
+-- BUG-016: Split profile policy — org members can SELECT each other, but only edit own row
+create policy "Users see org profiles" on profiles
+  for select using (org_id in (select org_id from profiles where user_id = auth.uid()));
+
+create policy "Users insert own profile" on profiles
+  for insert with check (user_id = auth.uid());
+
+create policy "Users update own profile" on profiles
+  for update using (user_id = auth.uid());
+
+create policy "Users delete own profile" on profiles
+  for delete using (user_id = auth.uid());
 
 create policy "Users access org contacts" on contacts
   for all using (org_id in (select org_id from profiles where user_id = auth.uid()));
@@ -131,22 +158,16 @@ create policy "Users access org contacts" on contacts
 create policy "Users access org prospects" on preneed_prospects
   for all using (org_id in (select org_id from profiles where user_id = auth.uid()));
 
+-- BUG-014: Simplified — direct org_id check instead of nested subquery through contacts
 create policy "Users access org activities" on activities
-  for all using (contact_id in (
-    select id from contacts where org_id in (
-      select org_id from profiles where user_id = auth.uid()
-    )
-  ));
+  for all using (org_id in (select org_id from profiles where user_id = auth.uid()));
 
 create policy "Users access org aftercare" on aftercare_cases
   for all using (org_id in (select org_id from profiles where user_id = auth.uid()));
 
+-- BUG-015: Simplified — direct org_id check instead of nested subquery through aftercare_cases
 create policy "Users access org touchpoints" on aftercare_touchpoints
-  for all using (case_id in (
-    select id from aftercare_cases where org_id in (
-      select org_id from profiles where user_id = auth.uid()
-    )
-  ));
+  for all using (org_id in (select org_id from profiles where user_id = auth.uid()));
 
 -- Auto-create profile + org on signup
 -- IMPORTANT: `set search_path = public` is required on all security definer functions.

@@ -147,32 +147,48 @@ Goal: Reduce data migration friction for funeral directors moving from physical/
 
 ---
 
-#### QA Fixes (from 2026-03-06 audit)
-Full report: `soshi-qa-report.docx`
+#### QA Bug Sweep (from QA-BUG-REPORT.md, 2026-03-07)
+Full report: `QA-BUG-REPORT.md` (75 bugs across P0/P1/P2/P3)
 
-**Critical (fix before deploy):**
-- [x] Fix `handle_new_user` trigger — added `set search_path = public` to `schema.sql`; added `middleware.ts`; fixed callback error handling; login page now shows error messages
-  - ⚠️ **Supabase action required:** Re-run the updated `handle_new_user` function definition in the Supabase SQL Editor to patch the live instance. `schema.sql` is the source of truth but Supabase does not auto-apply file changes.
-- [ ] Fix digest cron timing — 1pm UTC daily only works for ET/winter; rewrite to compare in UTC or restore 30-min cron (requires Vercel Pro)
+**P0 — Blockers (3/3 complete):**
+- [x] BUG-001: Added `preferences jsonb` column to profiles table in schema.sql
+- [x] BUG-002: Added `/api/` to public paths in middleware.ts (cron was getting 401)
+- [x] BUG-003: Changed cron to hourly in vercel.json (was daily, missed all non-ET timezones)
 
-**High:**
-- [ ] Wire Toast notifications to store actions (system exists, just disconnected)
-- [ ] Add cascade warning to contact deletion (prospects + aftercare silently destroyed)
-- [ ] Add `contact` field to `PreneedProspect` type (or generate Supabase types)
-- [ ] Delete duplicate config — remove `next.config.mjs` or `next.config.ts` (keep one)
+**P1 — High (14/14 complete):**
+- [x] BUG-004: Added error handling + optimistic update + rollback to moveProspect()
+- [x] BUG-005: Removed `/onboarding` from public paths in middleware.ts
+- [x] BUG-006: Changed `getSession()` to `getUser()` in auth callback (Supabase deprecation)
+- [x] BUG-007: Added initialization guard to Zustand store (prevent double-init race)
+- [x] BUG-008: Added `redirectTo` search param preservation in middleware
+- [x] BUG-009: Changed CSV import from batch insert to individual inserts with per-row errors
+- [x] BUG-010: Added useEffect to WelcomeTour to clamp step index on resize
+- [x] BUG-011: Refactored PIPELINE_STAGES to hex colors + separate bg/border Tailwind classes
+- [x] BUG-012: Replaced `toLocaleString` round-trip with `Intl.DateTimeFormat` in digest
+- [x] BUG-013: Added useEffect sync for settings page when org/profile change
+- [x] BUG-014: Added org_id to activities table + index + simplified RLS policies
+- [x] BUG-015: Added org_id to aftercare_touchpoints table + index + simplified RLS
+- [x] BUG-016: Split profiles RLS into SELECT (org-wide) / INSERT+UPDATE+DELETE (own-row)
+- [x] BUG-017: Split organizations RLS into SELECT / INSERT+UPDATE+DELETE (owner restriction)
 
-**Medium:**
-- [x] Batch CSV imports (Supabase array insert instead of sequential) — 50-row batches
-- [ ] Remove unused deps: `@hello-pangea/dnd`, `resend`
-- [ ] Add org_id filter to digest touchpoints query (currently fetches all orgs, filters in JS)
-- [ ] Denormalize org_id onto activities/touchpoints tables for faster RLS
-- [x] Add `communication_pref` field to ContactForm and CSV import
+**P2 — Medium (4/30 complete, 26 remaining):**
+- [x] BUG-028: Fixed midnight-crossing window check in digest time comparison
+- [x] BUG-031: Added `escapeHtml()` helper for XSS prevention in digest email
+- [x] BUG-032: Added saving/disabled state to settings save button
+- [x] BUG-033: Changed sidebar logo link from `/` to `/dashboard`
+- [ ] BUG-018: Add duplicate conversion guard to convertToProspect()
+- [ ] BUG-019: Add org_id filter on fetch queries (defense-in-depth)
+- [ ] BUG-020: Fix timezone off-by-one for follow-up date comparisons
+- [ ] BUG-021: Fix contact update propagation to prospect cards
+- [ ] BUG-022: Fix Excel formula cells producing [object Object]
+- [ ] BUG-023–027, 029, 030, 034–047: See QA-BUG-REPORT.md
 
-**Low:**
-- [x] Add loading states to dashboard pages — skeleton screens on all main pages
-- [ ] Add pagination to list views (contacts, prospects, aftercare)
-- [ ] Use `.replaceAll('_', ' ')` for lead_source display
-- [ ] Add error UI to auth callback (show message on expired/failed magic links)
+**P3 — Low (0/28, deferred):**
+- [ ] BUG-048–075: See QA-BUG-REPORT.md
+
+**Files modified (12):** schema.sql, middleware.ts, store.ts, database.ts, WelcomeTour.tsx, pipeline/page.tsx, settings/page.tsx, import/page.tsx, digest/route.ts, Sidebar.tsx, vercel.json, auth/callback/page.tsx
+
+⚠️ **Supabase action required:** Re-run `schema.sql` in Supabase SQL Editor to apply schema changes (new columns on activities/aftercare_touchpoints, updated RLS policies).
 
 ---
 

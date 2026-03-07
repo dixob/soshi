@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useStore } from '@/lib/store';
 
 export default function SettingsPage() {
@@ -10,13 +10,29 @@ export default function SettingsPage() {
   const [digestTime, setDigestTime] = useState(profile?.digest_time || '08:00');
   const [timezone, setTimezone] = useState(profile?.timezone || 'America/New_York');
   const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  // Sync state when store data loads (handles initial null → real data)
+  useEffect(() => {
+    if (org?.name) setOrgName(org.name);
+  }, [org?.name]);
+  useEffect(() => {
+    if (profile?.full_name) setFullName(profile.full_name);
+    if (profile?.digest_time) setDigestTime(profile.digest_time);
+    if (profile?.timezone) setTimezone(profile.timezone);
+  }, [profile?.full_name, profile?.digest_time, profile?.timezone]);
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
-    await updateOrg({ name: orgName });
-    await updateProfile({ full_name: fullName, digest_time: digestTime, timezone: timezone });
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+    setSaving(true);
+    try {
+      await updateOrg({ name: orgName });
+      await updateProfile({ full_name: fullName, digest_time: digestTime, timezone: timezone });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -74,9 +90,10 @@ export default function SettingsPage() {
 
         <button
           type="submit"
-          className="px-4 py-2 bg-stone-900 text-white rounded-lg text-sm font-medium hover:bg-stone-800 transition-colors"
+          disabled={saving}
+          className="px-4 py-2 bg-stone-900 text-white rounded-lg text-sm font-medium hover:bg-stone-800 transition-colors disabled:opacity-50"
         >
-          {saved ? 'Saved!' : 'Save Settings'}
+          {saving ? 'Saving...' : saved ? 'Saved!' : 'Save Settings'}
         </button>
       </form>
     </div>

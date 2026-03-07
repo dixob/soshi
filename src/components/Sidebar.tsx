@@ -57,7 +57,7 @@ export default function Sidebar() {
         )}
       >
         <div className="p-4 border-b border-stone-100 flex items-center justify-between">
-          <Link href="/" className="block group">
+          <Link href="/dashboard" className="block group">
             <h1 className="font-semibold text-stone-900 text-sm group-hover:text-stone-600 transition-colors">Soshi</h1>
             <p className="text-xs text-stone-400 truncate">{org?.name || 'My Funeral Home'}</p>
           </Link>

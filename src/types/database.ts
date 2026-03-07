@@ -125,13 +125,13 @@ export interface AftercareTouchpoint {
 }
 
 // Pipeline stage metadata
-export const PIPELINE_STAGES: { key: PipelineStage; label: string; color: string }[] = [
-  { key: 'prospect', label: 'Prospect', color: 'bg-slate-100 border-slate-300' },
-  { key: 'contacted', label: 'Contacted', color: 'bg-blue-50 border-blue-300' },
-  { key: 'interested', label: 'Interested', color: 'bg-amber-50 border-amber-300' },
-  { key: 'quoted', label: 'Quoted', color: 'bg-purple-50 border-purple-300' },
-  { key: 'follow_up', label: 'Follow-up', color: 'bg-orange-50 border-orange-300' },
-  { key: 'converted', label: 'Converted', color: 'bg-emerald-50 border-emerald-300' },
+export const PIPELINE_STAGES: { key: PipelineStage; label: string; color: string; bg: string; border: string }[] = [
+  { key: 'prospect', label: 'Prospect', color: '#94a3b8', bg: 'bg-slate-100', border: 'border-slate-300' },
+  { key: 'contacted', label: 'Contacted', color: '#3b82f6', bg: 'bg-blue-50', border: 'border-blue-300' },
+  { key: 'interested', label: 'Interested', color: '#f59e0b', bg: 'bg-amber-50', border: 'border-amber-300' },
+  { key: 'quoted', label: 'Quoted', color: '#a855f7', bg: 'bg-purple-50', border: 'border-purple-300' },
+  { key: 'follow_up', label: 'Follow-up', color: '#f97316', bg: 'bg-orange-50', border: 'border-orange-300' },
+  { key: 'converted', label: 'Converted', color: '#10b981', bg: 'bg-emerald-50', border: 'border-emerald-300' },
 ];
 
 // Default aftercare touchpoints (days after service)

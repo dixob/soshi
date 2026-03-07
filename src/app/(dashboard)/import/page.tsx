@@ -120,11 +120,10 @@ export default function ImportPage() {
     const org = useStore.getState().org;
     if (!org) { setStage('mapping'); return; }
 
-    const BATCH_SIZE = 50;
-    for (let i = 0; i < validContacts.length; i += BATCH_SIZE) {
-      const batch = validContacts.slice(i, i + BATCH_SIZE).map(c => ({ ...c, org_id: org.id }));
-      const { error } = await supabase.from('contacts').insert(batch);
-      if (error) { errors += batch.length; } else { imported += batch.length; }
+    // BUG-009: Insert individually so one bad row doesn't fail the whole batch
+    for (const c of validContacts) {
+      const { error } = await supabase.from('contacts').insert({ ...c, org_id: org.id });
+      if (error) { errors++; } else { imported++; }
     }
 
     useStore.getState().fetchContacts();

@@ -61,6 +61,13 @@ export default function WelcomeTour() {
   const [isMobile, setIsMobile] = useState(false);
 
   const steps = isMobile ? MOBILE_STEPS : DESKTOP_STEPS;
+
+  // BUG-010: Clamp step index when switching between desktop/mobile step arrays
+  // (e.g. resizing from desktop at step 3 → mobile only has 2 steps)
+  useEffect(() => {
+    setStep((s) => Math.min(s, steps.length - 1));
+  }, [steps.length]);
+
   const currentStep = steps[step];
   const isLast = step === steps.length - 1;
 

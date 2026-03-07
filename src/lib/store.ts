@@ -64,6 +64,8 @@ export const useStore = create<AppState>((set, get) => ({
   aftercareCases: [],
 
   initialize: async () => {
+    // Prevent concurrent initialization
+    if (get().loading && get().user) return;
     set({ loading: true });
     try {
       const supabase = createClient();
@@ -171,6 +173,7 @@ export const useStore = create<AppState>((set, get) => ({
 
     // Log creation activity
     await supabase.from('activities').insert({
+      org_id: org.id,
       prospect_id: prospect.id,
       contact_id: prospect.contact_id,
       user_id: user.id,
@@ -201,6 +204,7 @@ export const useStore = create<AppState>((set, get) => ({
     const prospect = get().prospects.find(p => p.id === id);
     if (!prospect || !user) return;
 
+    const previousStage = prospect.stage;
     const stageLabel = stage.replaceAll('_', ' ');
     const updates: Partial<PreneedProspect> = {
       stage: stage as PreneedProspect['stage'],
@@ -208,8 +212,29 @@ export const useStore = create<AppState>((set, get) => ({
     };
     if (stage === 'converted') updates.converted_at = new Date().toISOString();
 
-    await supabase.from('preneed_prospects').update(updates).eq('id', id);
+    // Optimistic update
+    set({
+      prospects: get().prospects.map(p =>
+        p.id === id ? { ...p, ...updates } : p
+      ),
+    });
+
+    const { error } = await supabase.from('preneed_prospects').update(updates).eq('id', id);
+    if (error) {
+      // Rollback on failure
+      console.error(error);
+      set({
+        prospects: get().prospects.map(p =>
+          p.id === id ? { ...p, stage: previousStage, last_contact_date: prospect.last_contact_date, converted_at: prospect.converted_at } : p
+        ),
+      });
+      emitToast('Failed to move prospect', 'error');
+      return;
+    }
+
+    const { org: moveOrg } = get();
     await supabase.from('activities').insert({
+      org_id: moveOrg?.id,
       prospect_id: id,
       contact_id: prospect.contact_id,
       user_id: user.id,
@@ -217,11 +242,6 @@ export const useStore = create<AppState>((set, get) => ({
       note: `Moved to ${stageLabel}`,
     });
 
-    set({
-      prospects: get().prospects.map(p =>
-        p.id === id ? { ...p, ...updates } : p
-      ),
-    });
     emitToast(`Moved to ${stageLabel}`, 'success');
   },
 
@@ -230,7 +250,9 @@ export const useStore = create<AppState>((set, get) => ({
     const supabase = createClient();
     const { user } = get();
     if (!user) return;
+    const { org: actOrg } = get();
     const { error } = await supabase.from('activities').insert({
+      org_id: actOrg?.id,
       prospect_id: prospectId,
       contact_id: contactId,
       user_id: user.id,
@@ -288,6 +310,7 @@ export const useStore = create<AppState>((set, get) => ({
     // Auto-generate touchpoints
     const sDate = new Date(serviceDate);
     const touchpoints = DEFAULT_TOUCHPOINTS.map(tp => ({
+      org_id: org.id,
       case_id: ac.id,
       touchpoint_type: tp.type,
       label: tp.label,

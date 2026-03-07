@@ -107,3 +107,27 @@ Running log of all major strategic and product decisions. Append new entries at 
 **Rationale:** SheetJS (`xlsx` on npm) is frozen at v0.18.5 with unpatched CVEs (including ReDoS CVE-2024-22363). Maintainer pulled from npm and distributes only via custom CDN — non-standard and risky for production. ExcelJS is MIT, actively maintained, works in Node.js API routes. PDF table extraction is inherently unreliable with pure-JS parsers, so the hybrid approach (try unpdf text extraction first, fall back to Claude Vision for scanned/complex PDFs) is the right call.
 **Alternatives considered:** SheetJS (CVE risk, non-standard distribution), pdf-parse (unmaintained), client-side processing (would bloat bundle).
 **Status:** Final
+
+### [2026-03-07] — QA bug sweep: denormalize org_id onto activities and touchpoints
+**Decision:** Add `org_id` columns to `activities` and `aftercare_touchpoints` tables instead of relying on nested subquery RLS policies through parent tables.
+**Rationale:** RLS policies that join through `preneed_prospects` or `aftercare_cases` to reach `organizations` are fragile and slow. Adding `org_id` directly enables simple single-column RLS (`org_id = get_user_org_id()`). Required coordinated changes: schema.sql (columns + indexes + policies) and store.ts (4 insert points now include org_id).
+**Alternatives considered:** Keeping nested subquery RLS (rejected — performance and complexity cost). Using Postgres views (rejected — still need underlying RLS).
+**Status:** Final
+
+### [2026-03-07] — QA bug sweep: split RLS policies per-operation
+**Decision:** Replace single "ALL" RLS policies with granular SELECT/INSERT/UPDATE/DELETE policies on `profiles` and `organizations` tables.
+**Rationale:** Single "ALL" policies allowed any org member to delete or modify other members' profiles and mutate organization records. Split policies enforce: SELECT is org-wide (see your colleagues), but INSERT/UPDATE/DELETE are restricted to own row (profiles) or org owner (organizations).
+**Alternatives considered:** None — this is a security fix, not a design choice.
+**Status:** Final
+
+### [2026-03-07] — QA bug sweep: cron changed to hourly for timezone coverage
+**Decision:** Changed Vercel cron from `0 13 * * *` (once daily at 1pm UTC) to `0 * * * *` (hourly). The digest route already has per-user timezone + 30-minute window logic.
+**Rationale:** A single daily fire at 1pm UTC only hits ET users at 8am. Users in PT, CT, MT, or international timezones would never receive digests at their configured time. Hourly fire lets the route's internal timezone matching work correctly for all users.
+**Alternatives considered:** Keeping daily and converting user times to UTC (rejected — doesn't work for a single daily fire covering all timezones).
+**Status:** Final — requires Vercel Pro for sub-daily cron; on Hobby plan this may not work
+
+### [2026-03-07] — QA bug sweep: Intl.DateTimeFormat for serverless timezone handling
+**Decision:** Use `Intl.DateTimeFormat` with `formatToParts()` for timezone conversion in the digest route, replacing `toLocaleString` round-trip parsing.
+**Rationale:** `toLocaleString` output format varies by Node.js version and OS locale settings. In Vercel's serverless environment, this produced unreliable timezone conversions. `Intl.DateTimeFormat` is spec-compliant and returns structured parts, eliminating locale-dependent string parsing.
+**Alternatives considered:** `date-fns-tz` (rejected — adding a dependency for one use case), manual UTC offset calculation (rejected — doesn't handle DST).
+**Status:** Final
