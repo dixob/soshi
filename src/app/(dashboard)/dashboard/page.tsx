@@ -16,6 +16,8 @@ import {
   Upload,
 } from 'lucide-react';
 import Link from 'next/link';
+import WelcomeTour from '@/components/WelcomeTour';
+import GettingStartedChecklist, { type ChecklistItem } from '@/components/GettingStartedChecklist';
 
 function StatCard({
   label,
@@ -77,7 +79,7 @@ function StageBar({ stages }: { stages: { key: string; label: string; color: str
 }
 
 export default function DashboardPage() {
-  const { prospects, contacts, aftercareCases, fetchContacts, fetchProspects, fetchAftercareCases } = useStore();
+  const { prospects, contacts, aftercareCases, profile, fetchContacts, fetchProspects, fetchAftercareCases } = useStore();
 
   useEffect(() => {
     fetchContacts();
@@ -140,17 +142,38 @@ export default function DashboardPage() {
     return contacts.find((c) => c.id === p.contact_id);
   };
 
+  // Checklist items — computed from live store state
+  const checklistItems: ChecklistItem[] = useMemo(() => [
+    { id: 'account', label: 'Set up your account', done: true },
+    { id: 'contact', label: 'Add your first contact', done: contacts.length > 0, href: '/contacts' },
+    { id: 'prospect', label: 'Create your first prospect', done: prospects.length > 0, href: '/pipeline' },
+    { id: 'digest', label: 'Set your daily digest time', done: profile?.digest_time !== '08:00', href: '/settings' },
+    { id: 'import', label: 'Import contacts from CSV', done: contacts.length >= 5, href: '/import', bonus: true },
+  ], [contacts, prospects, profile]);
+
+  const showChecklist = profile
+    && !profile.preferences?.checklist_dismissed
+    && !checklistItems.every((i) => i.done);
+
+  const showTour = profile && !profile.preferences?.tour_completed;
+
   // Empty state — brand new account
   const isEmpty = stats.totalProspects === 0 && stats.totalContacts === 0;
 
   return (
     <div className="max-w-5xl mx-auto space-y-6">
+      {/* Welcome tour overlay */}
+      {showTour && <WelcomeTour />}
+
       <div>
         <h1 className="text-xl font-semibold text-stone-900">Dashboard</h1>
         <p className="text-sm text-stone-500 mt-0.5">
           {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
         </p>
       </div>
+
+      {/* Getting Started checklist */}
+      {showChecklist && <GettingStartedChecklist items={checklistItems} />}
 
       {/* Welcome state */}
       {isEmpty && (
@@ -182,7 +205,7 @@ export default function DashboardPage() {
       )}
 
       {/* Top stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3" data-tour-target="stat-cards">
         <StatCard
           label="Active Prospects"
           value={stats.totalProspects - stats.converted}

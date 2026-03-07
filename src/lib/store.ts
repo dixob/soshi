@@ -46,6 +46,10 @@ interface AppState {
   // Actions — org
   updateOrg: (data: Partial<Organization>) => Promise<void>;
   updateProfile: (data: Partial<Profile>) => Promise<void>;
+
+  // Actions — tutorial
+  markTourCompleted: () => Promise<void>;
+  dismissChecklist: () => Promise<void>;
 }
 
 export const useStore = create<AppState>((set, get) => ({
@@ -346,5 +350,26 @@ export const useStore = create<AppState>((set, get) => ({
     if (error) { console.error(error); emitToast('Failed to update profile', 'error'); return; }
     set({ profile: { ...profile, ...data } });
     emitToast('Settings saved', 'success');
+  },
+
+  // --- Tutorial ---
+  markTourCompleted: async () => {
+    const { profile } = get();
+    if (!profile) return;
+    const prefs = { ...profile.preferences, tour_completed: true };
+    const supabase = createClient();
+    const { error } = await supabase.from('profiles').update({ preferences: prefs }).eq('id', profile.id);
+    if (error) { console.error(error); return; }
+    set({ profile: { ...profile, preferences: prefs } });
+  },
+
+  dismissChecklist: async () => {
+    const { profile } = get();
+    if (!profile) return;
+    const prefs = { ...profile.preferences, checklist_dismissed: true };
+    const supabase = createClient();
+    const { error } = await supabase.from('profiles').update({ preferences: prefs }).eq('id', profile.id);
+    if (error) { console.error(error); return; }
+    set({ profile: { ...profile, preferences: prefs } });
   },
 }));

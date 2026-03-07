@@ -38,6 +38,11 @@ export interface Organization {
   created_at: string;
 }
 
+export interface UserPreferences {
+  tour_completed?: boolean;
+  checklist_dismissed?: boolean;
+}
+
 export interface Profile {
   id: string;
   user_id: string;
@@ -46,6 +51,7 @@ export interface Profile {
   role: string;
   digest_time: string; // HH:MM format
   timezone: string;
+  preferences: UserPreferences;
   created_at: string;
 }
 

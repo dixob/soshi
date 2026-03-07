@@ -69,14 +69,16 @@ export default function Sidebar() {
           </button>
         </div>
 
-        <nav className="flex-1 p-2 space-y-0.5">
+        <nav className="flex-1 p-2 space-y-0.5" data-tour-target="sidebar-nav">
           {navItems.map(({ href, label, icon: Icon }) => {
             const active = pathname === href || pathname.startsWith(href + '/');
+            const tourId = label.toLowerCase().replace(/ /g, '-');
             return (
               <Link
                 key={href}
                 href={href}
                 onClick={() => setMobileOpen(false)}
+                data-tour-target={`nav-${tourId}`}
                 className={cn(
                   'flex items-center gap-2.5 px-3 py-2 rounded-md text-sm transition-colors',
                   active
