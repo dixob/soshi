@@ -57,10 +57,10 @@ export default function Sidebar() {
         )}
       >
         <div className="p-4 border-b border-stone-100 flex items-center justify-between">
-          <div>
-            <h1 className="font-semibold text-stone-900 text-sm">Soshi</h1>
+          <Link href="/" className="block group">
+            <h1 className="font-semibold text-stone-900 text-sm group-hover:text-stone-600 transition-colors">Soshi</h1>
             <p className="text-xs text-stone-400 truncate">{org?.name || 'My Funeral Home'}</p>
-          </div>
+          </Link>
           <button
             onClick={() => setMobileOpen(false)}
             className="md:hidden p-1 text-stone-400 hover:text-stone-600"
