@@ -51,11 +51,21 @@ export async function middleware(request: NextRequest) {
 
   const { pathname } = request.nextUrl;
 
+  // Redirect authenticated users away from auth pages to dashboard
+  if (user && (pathname.startsWith('/login') || pathname.startsWith('/signup'))) {
+    const dashboardUrl = request.nextUrl.clone();
+    dashboardUrl.pathname = '/dashboard';
+    return NextResponse.redirect(dashboardUrl);
+  }
+
   // Public paths that don't require authentication
   const isPublicPath =
     pathname.startsWith('/login') ||
+    pathname.startsWith('/signup') ||
     pathname.startsWith('/auth') ||
     pathname.startsWith('/onboarding') ||
+    pathname.startsWith('/about') ||
+    pathname.startsWith('/contact') ||
     pathname === '/';
 
   if (!user && !isPublicPath) {
