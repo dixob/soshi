@@ -1,67 +1,108 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useStore } from '@/lib/store';
 import Papa from 'papaparse';
-import { Upload, FileSpreadsheet, Check, AlertTriangle } from 'lucide-react';
+import { FIELD_MAPPINGS, autoMapColumns } from '@/lib/import-fields';
+import type { ParsedData } from '@/lib/import-fields';
+import { Upload, Camera, Download, FileSpreadsheet, Check, AlertTriangle, ArrowLeft } from 'lucide-react';
+import Link from 'next/link';
 
-interface CSVRow {
-  [key: string]: string;
-}
-
-const FIELD_MAPPINGS: { target: string; label: string; aliases: string[] }[] = [
-  { target: 'first_name', label: 'First Name', aliases: ['first name', 'first', 'fname', 'first_name'] },
-  { target: 'last_name', label: 'Last Name', aliases: ['last name', 'last', 'lname', 'last_name', 'surname'] },
-  { target: 'phone', label: 'Phone', aliases: ['phone', 'telephone', 'cell', 'mobile', 'phone number', 'phone_number'] },
-  { target: 'email', label: 'Email', aliases: ['email', 'e-mail', 'email address', 'email_address'] },
-  { target: 'address', label: 'Address', aliases: ['address', 'street', 'location'] },
-  { target: 'relationship_notes', label: 'Notes', aliases: ['notes', 'note', 'comments', 'relationship_notes', 'memo'] },
-];
+type Stage = 'hub' | 'parsing' | 'mapping' | 'importing' | 'done';
 
 export default function ImportPage() {
   const { createContact } = useStore();
-  const [rows, setRows] = useState<CSVRow[]>([]);
+  const [stage, setStage] = useState<Stage>('hub');
+  const [rows, setRows] = useState<Record<string, string>[]>([]);
   const [headers, setHeaders] = useState<string[]>([]);
   const [mappings, setMappings] = useState<Record<string, string>>({});
-  const [importing, setImporting] = useState(false);
   const [result, setResult] = useState<{ imported: number; errors: number } | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [dragOver, setDragOver] = useState(false);
 
-  function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  function reset() {
+    setStage('hub');
+    setRows([]);
+    setHeaders([]);
+    setMappings({});
+    setResult(null);
+    setError(null);
+  }
 
+  function applyParsedData(data: ParsedData) {
+    setHeaders(data.headers);
+    setRows(data.rows);
+    setMappings(autoMapColumns(data.headers));
+    setStage('mapping');
+  }
+
+  function handleCSV(file: File) {
+    setStage('parsing');
     Papa.parse(file, {
       header: true,
       skipEmptyLines: true,
       complete: (results) => {
-        const data = results.data as CSVRow[];
+        const data = results.data as Record<string, string>[];
         const hdrs = results.meta.fields || [];
-        setRows(data);
-        setHeaders(hdrs);
-        setResult(null);
-
-        // Auto-map columns
-        const autoMap: Record<string, string> = {};
-        for (const field of FIELD_MAPPINGS) {
-          for (const header of hdrs) {
-            if (field.aliases.includes(header.toLowerCase().trim())) {
-              autoMap[field.target] = header;
-              break;
-            }
-          }
-        }
-        setMappings(autoMap);
+        applyParsedData({ headers: hdrs, rows: data });
+      },
+      error: () => {
+        setError('Failed to parse CSV file. Please check the format.');
+        setStage('hub');
       },
     });
   }
 
+  async function handleServerParse(file: File) {
+    setStage('parsing');
+    setError(null);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await fetch('/api/parse-file', { method: 'POST', body: formData });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: 'Failed to parse file' }));
+        throw new Error(err.error || 'Failed to parse file');
+      }
+      const data: ParsedData & { fileType: string; rowCount: number } = await res.json();
+      applyParsedData(data);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to parse file');
+      setStage('hub');
+    }
+  }
+
+  function handleFile(file: File) {
+    setError(null);
+    const ext = file.name.split('.').pop()?.toLowerCase();
+    if (ext === 'csv') {
+      handleCSV(file);
+    } else if (ext === 'xlsx' || ext === 'pdf') {
+      handleServerParse(file);
+    } else {
+      setError(`Unsupported file type: .${ext}. Please upload a CSV, Excel (.xlsx), or PDF file.`);
+    }
+  }
+
+  function handleFileInput(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (file) handleFile(file);
+    e.target.value = '';
+  }
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOver(false);
+    const file = e.dataTransfer.files[0];
+    if (file) handleFile(file);
+  }, []);
+
   async function handleImport() {
     if (!mappings.first_name) return;
-    setImporting(true);
+    setStage('importing');
     let imported = 0;
     let errors = 0;
 
-    // Build all valid contacts first
     const validContacts: Record<string, string>[] = [];
     for (const row of rows) {
       const contact: Record<string, string> = {};
@@ -74,11 +115,10 @@ export default function ImportPage() {
       validContacts.push(contact);
     }
 
-    // Batch insert via Supabase (bypasses store's one-at-a-time insert)
     const { createClient } = await import('@/lib/supabase');
     const supabase = createClient();
     const org = useStore.getState().org;
-    if (!org) { setImporting(false); return; }
+    if (!org) { setStage('mapping'); return; }
 
     const BATCH_SIZE = 50;
     for (let i = 0; i < validContacts.length; i += BATCH_SIZE) {
@@ -87,28 +127,93 @@ export default function ImportPage() {
       if (error) { errors += batch.length; } else { imported += batch.length; }
     }
 
-    // Refresh contacts in store
     useStore.getState().fetchContacts();
-
     setResult({ imported, errors });
-    setImporting(false);
+    setStage('done');
   }
 
-  return (
-    <div>
-      <div className="mb-6">
-        <h1 className="text-lg font-semibold text-stone-900">Import Contacts</h1>
-        <p className="text-sm text-stone-500 mt-0.5">Upload a CSV file to import contacts in bulk</p>
-      </div>
+  // --- Hub view ---
+  if (stage === 'hub') {
+    return (
+      <div>
+        <div className="mb-6">
+          <h1 className="text-lg font-semibold text-stone-900">Import Contacts</h1>
+          <p className="text-sm text-stone-500 mt-0.5">Add contacts from files, photos, or a template</p>
+        </div>
 
-      {!rows.length ? (
-        <label className="block border-2 border-dashed border-stone-300 rounded-xl p-12 text-center cursor-pointer hover:border-stone-400 transition-colors bg-white">
-          <Upload className="w-8 h-8 mx-auto mb-3 text-stone-400" />
-          <p className="text-sm font-medium text-stone-600">Click to upload CSV</p>
-          <p className="text-xs text-stone-400 mt-1">Supports .csv files up to 500 rows</p>
-          <input type="file" accept=".csv" onChange={handleFile} className="hidden" />
-        </label>
-      ) : result ? (
+        {error && (
+          <div className="flex items-center gap-2 text-red-600 text-sm bg-red-50 border border-red-200 rounded-lg px-3 py-2 mb-4">
+            <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+            {error}
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* Upload file */}
+          <label
+            className={`block border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-colors bg-white ${
+              dragOver ? 'border-stone-900 bg-stone-50' : 'border-stone-300 hover:border-stone-400'
+            }`}
+            onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+            onDragLeave={() => setDragOver(false)}
+            onDrop={handleDrop}
+          >
+            <Upload className="w-8 h-8 mx-auto mb-3 text-stone-400" />
+            <p className="text-sm font-medium text-stone-600">Upload File</p>
+            <p className="text-xs text-stone-400 mt-1">CSV, Excel, or PDF</p>
+            <p className="text-xs text-stone-400">Drag & drop or click to browse</p>
+            <input type="file" accept=".csv,.xlsx,.pdf" onChange={handleFileInput} className="hidden" />
+          </label>
+
+          {/* Scan a card */}
+          <Link
+            href="/import/scan"
+            className="block border-2 border-dashed border-stone-300 rounded-xl p-8 text-center hover:border-stone-400 transition-colors bg-white"
+          >
+            <Camera className="w-8 h-8 mx-auto mb-3 text-stone-400" />
+            <p className="text-sm font-medium text-stone-600">Scan a Card</p>
+            <p className="text-xs text-stone-400 mt-1">Take a photo of a business card</p>
+            <p className="text-xs text-stone-400">AI extracts the contact info</p>
+          </Link>
+
+          {/* Download template */}
+          <a
+            href="/soshi-contact-template.csv"
+            download
+            className="block border-2 border-dashed border-stone-300 rounded-xl p-8 text-center hover:border-stone-400 transition-colors bg-white"
+          >
+            <Download className="w-8 h-8 mx-auto mb-3 text-stone-400" />
+            <p className="text-sm font-medium text-stone-600">Download Template</p>
+            <p className="text-xs text-stone-400 mt-1">Get a CSV template with</p>
+            <p className="text-xs text-stone-400">the correct column headers</p>
+          </a>
+        </div>
+      </div>
+    );
+  }
+
+  // --- Parsing view ---
+  if (stage === 'parsing') {
+    return (
+      <div>
+        <div className="mb-6">
+          <h1 className="text-lg font-semibold text-stone-900">Import Contacts</h1>
+        </div>
+        <div className="bg-white border border-stone-200 rounded-lg p-12 text-center">
+          <div className="animate-spin w-8 h-8 border-2 border-stone-300 border-t-stone-900 rounded-full mx-auto mb-3" />
+          <p className="text-sm text-stone-500">Parsing file...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // --- Done view ---
+  if (stage === 'done' && result) {
+    return (
+      <div>
+        <div className="mb-6">
+          <h1 className="text-lg font-semibold text-stone-900">Import Contacts</h1>
+        </div>
         <div className="bg-white border border-stone-200 rounded-lg p-6 text-center">
           <Check className="w-8 h-8 mx-auto mb-3 text-emerald-500" />
           <p className="text-sm font-medium text-stone-900">Import Complete</p>
@@ -117,94 +222,100 @@ export default function ImportPage() {
             {result.errors > 0 && `, ${result.errors} skipped`}
           </p>
           <button
-            onClick={() => { setRows([]); setHeaders([]); setMappings({}); setResult(null); }}
+            onClick={reset}
             className="mt-4 px-4 py-1.5 bg-stone-900 text-white rounded-lg text-sm font-medium hover:bg-stone-800"
           >
-            Import Another
+            Import More
           </button>
         </div>
-      ) : (
-        <div className="bg-white border border-stone-200 rounded-lg p-4 space-y-4">
-          <div className="flex items-center gap-2 text-sm text-stone-600">
-            <FileSpreadsheet className="w-4 h-4" />
-            <span>{rows.length} rows found &middot; {headers.length} columns</span>
-          </div>
+      </div>
+    );
+  }
 
-          {/* Column mapping */}
-          <div>
-            <h3 className="text-sm font-medium text-stone-700 mb-2">Map Columns</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-              {FIELD_MAPPINGS.map(field => (
-                <div key={field.target} className="flex items-center gap-2">
-                  <label className="text-xs text-stone-500 w-24 flex-shrink-0">
-                    {field.label} {field.target === 'first_name' && '*'}
-                  </label>
-                  <select
-                    value={mappings[field.target] || ''}
-                    onChange={(e) => setMappings({ ...mappings, [field.target]: e.target.value })}
-                    className="flex-1 px-2 py-1 border border-stone-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-stone-900"
-                  >
-                    <option value="">— skip —</option>
-                    {headers.map(h => (
-                      <option key={h} value={h}>{h}</option>
-                    ))}
-                  </select>
-                </div>
-              ))}
+  // --- Mapping + importing view ---
+  return (
+    <div>
+      <div className="mb-6">
+        <button onClick={reset} className="flex items-center gap-1 text-sm text-stone-500 hover:text-stone-700 mb-2">
+          <ArrowLeft className="w-3.5 h-3.5" />
+          Back
+        </button>
+        <h1 className="text-lg font-semibold text-stone-900">Map Columns</h1>
+        <p className="text-sm text-stone-500 mt-0.5">{rows.length} rows found &middot; {headers.length} columns</p>
+      </div>
+
+      <div className="bg-white border border-stone-200 rounded-lg p-4 space-y-4">
+        {/* Column mapping */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+          {FIELD_MAPPINGS.map(field => (
+            <div key={field.target} className="flex items-center gap-2">
+              <label className="text-xs text-stone-500 w-28 flex-shrink-0">
+                {field.label} {field.target === 'first_name' && '*'}
+              </label>
+              <select
+                value={mappings[field.target] || ''}
+                onChange={(e) => setMappings({ ...mappings, [field.target]: e.target.value })}
+                className="flex-1 px-2 py-1 border border-stone-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-stone-900"
+              >
+                <option value="">— skip —</option>
+                {headers.map(h => (
+                  <option key={h} value={h}>{h}</option>
+                ))}
+              </select>
             </div>
-          </div>
+          ))}
+        </div>
 
-          {/* Preview */}
-          <div>
-            <h3 className="text-sm font-medium text-stone-700 mb-2">Preview (first 3 rows)</h3>
-            <div className="overflow-x-auto">
-              <table className="text-xs w-full">
-                <thead>
-                  <tr className="bg-stone-50">
+        {/* Preview */}
+        <div>
+          <h3 className="text-sm font-medium text-stone-700 mb-2">Preview (first 3 rows)</h3>
+          <div className="overflow-x-auto">
+            <table className="text-xs w-full">
+              <thead>
+                <tr className="bg-stone-50">
+                  {FIELD_MAPPINGS.filter(f => mappings[f.target]).map(f => (
+                    <th key={f.target} className="px-2 py-1 text-left text-stone-500">{f.label}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {rows.slice(0, 3).map((row, i) => (
+                  <tr key={i} className="border-t border-stone-100">
                     {FIELD_MAPPINGS.filter(f => mappings[f.target]).map(f => (
-                      <th key={f.target} className="px-2 py-1 text-left text-stone-500">{f.label}</th>
+                      <td key={f.target} className="px-2 py-1 text-stone-600">
+                        {row[mappings[f.target]] || '—'}
+                      </td>
                     ))}
                   </tr>
-                </thead>
-                <tbody>
-                  {rows.slice(0, 3).map((row, i) => (
-                    <tr key={i} className="border-t border-stone-100">
-                      {FIELD_MAPPINGS.filter(f => mappings[f.target]).map(f => (
-                        <td key={f.target} className="px-2 py-1 text-stone-600">
-                          {row[mappings[f.target]] || '—'}
-                        </td>
-                      ))}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          {!mappings.first_name && (
-            <div className="flex items-center gap-2 text-amber-600 text-xs">
-              <AlertTriangle className="w-4 h-4" />
-              Map at least the First Name column to continue
-            </div>
-          )}
-
-          <div className="flex gap-2">
-            <button
-              onClick={handleImport}
-              disabled={importing || !mappings.first_name}
-              className="px-4 py-2 bg-stone-900 text-white rounded-lg text-sm font-medium hover:bg-stone-800 disabled:opacity-50"
-            >
-              {importing ? `Importing... (${rows.length} rows)` : `Import ${rows.length} Contacts`}
-            </button>
-            <button
-              onClick={() => { setRows([]); setHeaders([]); setMappings({}); }}
-              className="px-4 py-2 text-stone-500 text-sm hover:text-stone-700"
-            >
-              Cancel
-            </button>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
-      )}
+
+        {!mappings.first_name && (
+          <div className="flex items-center gap-2 text-amber-600 text-xs">
+            <AlertTriangle className="w-4 h-4" />
+            Map at least the First Name column to continue
+          </div>
+        )}
+
+        <div className="flex gap-2">
+          <button
+            onClick={handleImport}
+            disabled={stage === 'importing' || !mappings.first_name}
+            className="px-4 py-2 bg-stone-900 text-white rounded-lg text-sm font-medium hover:bg-stone-800 disabled:opacity-50"
+          >
+            {stage === 'importing' ? `Importing... (${rows.length} rows)` : `Import ${rows.length} Contacts`}
+          </button>
+          <button
+            onClick={reset}
+            className="px-4 py-2 text-stone-500 text-sm hover:text-stone-700"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

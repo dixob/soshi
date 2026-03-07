@@ -119,14 +119,15 @@ Goal: Ready for the first 10 discovery calls.
 
 ---
 
-#### Phase 6b — Onboarding Friction Mitigation
+#### Phase 6b — Onboarding Friction Mitigation ✅
 Goal: Reduce data migration friction for funeral directors moving from physical/spreadsheet records to Soshi.
 
-- [ ] **Guided CSV template** (~30 min): Downloadable .csv template with correct headers + 2 sample rows, instructions on import page, add `communication_pref` to import field mappings
-- [ ] **Scan-to-contact** (~2-3 hrs): Photo → Claude Haiku vision → structured JSON → pre-filled form. New API route `/api/scan-contact`, camera input component, review/correct UX
-- [ ] **Universal file ingestion** (~3-4 hrs): Accept .xlsx (ExcelJS), .pdf (unpdf + Claude fallback), .vcf, .docx. Single upload endpoint detects file type via magic bytes (`file-type`), routes to parser, normalizes to row objects, reuses column-mapping UI
-- [ ] **Update import page UI**: Single "Import Contacts" page that accepts any supported format
-- [ ] **Done when:** User can upload Excel, CSV, PDF, or photo and get contacts imported with minimal manual entry.
+- [x] **Guided CSV template**: Downloadable .csv template with correct headers + 2 sample rows, `communication_pref` added to import field mappings
+- [x] **Scan-to-contact**: Photo → Claude Haiku 4.5 vision → structured JSON → pre-filled ContactForm. API route `/api/scan-contact`, camera input, review/correct UX with confidence badge
+- [x] **Universal file ingestion**: Accept .xlsx (ExcelJS), .pdf (unpdf + Claude Haiku). Upload endpoint detects file type via magic bytes (`file-type`), routes to parser, normalizes to row objects, reuses column-mapping UI
+- [x] **Update import page UI**: 3-card hub (Upload File, Scan a Card, Download Template) accepting CSV/Excel/PDF
+- [x] **Loading skeletons**: All main pages show skeleton screens during initial data load via `dataLoading` store flag
+- [x] **Done:** User can upload Excel, CSV, PDF, or photo and get contacts imported with minimal manual entry.
 
 **New dependencies needed:** `exceljs`, `file-type`, `unpdf`, `@anthropic-ai/sdk`
 
@@ -161,14 +162,14 @@ Full report: `soshi-qa-report.docx`
 - [ ] Delete duplicate config — remove `next.config.mjs` or `next.config.ts` (keep one)
 
 **Medium:**
-- [ ] Batch CSV imports (Supabase array insert instead of sequential)
+- [x] Batch CSV imports (Supabase array insert instead of sequential) — 50-row batches
 - [ ] Remove unused deps: `@hello-pangea/dnd`, `resend`
 - [ ] Add org_id filter to digest touchpoints query (currently fetches all orgs, filters in JS)
 - [ ] Denormalize org_id onto activities/touchpoints tables for faster RLS
-- [ ] Add `communication_pref` field to ContactForm and CSV import
+- [x] Add `communication_pref` field to ContactForm and CSV import
 
 **Low:**
-- [ ] Add loading states to dashboard pages (Phase 6 item)
+- [x] Add loading states to dashboard pages — skeleton screens on all main pages
 - [ ] Add pagination to list views (contacts, prospects, aftercare)
 - [ ] Use `.replaceAll('_', ' ')` for lead_source display
 - [ ] Add error UI to auth callback (show message on expired/failed magic links)

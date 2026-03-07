@@ -7,9 +7,10 @@ import { cn, daysSince, daysSinceColor, formatDate, contactName } from '@/lib/ut
 import { Plus, Phone, Calendar, GripVertical, LayoutGrid } from 'lucide-react';
 import ProspectDetail from './ProspectDetail';
 import NewProspectModal from './NewProspectModal';
+import { KanbanSkeleton } from '@/components/PageSkeleton';
 
 export default function PipelinePage() {
-  const { prospects } = useStore();
+  const { prospects, dataLoading } = useStore();
   const [selectedProspect, setSelectedProspect] = useState<string | null>(null);
   const [showNewModal, setShowNewModal] = useState(false);
   const [draggedId, setDraggedId] = useState<string | null>(null);
@@ -43,6 +44,20 @@ export default function PipelinePage() {
       moveProspect(draggedId, stage);
       setDraggedId(null);
     }
+  }
+
+  if (dataLoading) {
+    return (
+      <div>
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <div className="h-5 w-36 bg-stone-100 rounded animate-pulse" />
+            <div className="h-3.5 w-48 bg-stone-50 rounded mt-2 animate-pulse" />
+          </div>
+        </div>
+        <KanbanSkeleton />
+      </div>
+    );
   }
 
   return (

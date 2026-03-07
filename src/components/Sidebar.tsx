@@ -22,7 +22,7 @@ const navItems = [
   { href: '/pipeline', label: 'Pipeline', icon: Kanban },
   { href: '/aftercare', label: 'Aftercare', icon: Heart },
   { href: '/contacts', label: 'Contacts', icon: Users },
-  { href: '/import', label: 'Import CSV', icon: Upload },
+  { href: '/import', label: 'Import', icon: Upload },
   { href: '/settings', label: 'Settings', icon: Settings },
 ];
 

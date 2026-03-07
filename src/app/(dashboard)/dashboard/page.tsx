@@ -18,6 +18,7 @@ import {
 import Link from 'next/link';
 import WelcomeTour from '@/components/WelcomeTour';
 import GettingStartedChecklist, { type ChecklistItem } from '@/components/GettingStartedChecklist';
+import { DashboardSkeleton } from '@/components/PageSkeleton';
 
 function StatCard({
   label,
@@ -79,7 +80,7 @@ function StageBar({ stages }: { stages: { key: string; label: string; color: str
 }
 
 export default function DashboardPage() {
-  const { prospects, contacts, aftercareCases, profile, fetchContacts, fetchProspects, fetchAftercareCases } = useStore();
+  const { prospects, contacts, aftercareCases, profile, dataLoading, fetchContacts, fetchProspects, fetchAftercareCases } = useStore();
 
   useEffect(() => {
     fetchContacts();
@@ -148,7 +149,7 @@ export default function DashboardPage() {
     { id: 'contact', label: 'Add your first contact', done: contacts.length > 0, href: '/contacts' },
     { id: 'prospect', label: 'Create your first prospect', done: prospects.length > 0, href: '/pipeline' },
     { id: 'digest', label: 'Set your daily digest time', done: profile?.digest_time !== '08:00', href: '/settings' },
-    { id: 'import', label: 'Import contacts from CSV', done: contacts.length >= 5, href: '/import', bonus: true },
+    { id: 'import', label: 'Import contacts', done: contacts.length >= 5, href: '/import', bonus: true },
   ], [contacts, prospects, profile]);
 
   const showChecklist = profile
@@ -159,6 +160,8 @@ export default function DashboardPage() {
 
   // Empty state — brand new account
   const isEmpty = stats.totalProspects === 0 && stats.totalContacts === 0;
+
+  if (dataLoading) return <DashboardSkeleton />;
 
   return (
     <div className="max-w-5xl mx-auto space-y-6">
@@ -183,7 +186,7 @@ export default function DashboardPage() {
           </div>
           <h2 className="text-base font-semibold text-stone-900 mb-1">Your pipeline is empty</h2>
           <p className="text-stone-500 text-sm mb-6 max-w-sm mx-auto">
-            Add your first contact to get started. You can type them in manually or import a CSV of your existing list.
+            Add your first contact to get started. You can type them in manually or import your existing list.
           </p>
           <div className="flex flex-col sm:flex-row gap-2 justify-center">
             <Link
@@ -198,7 +201,7 @@ export default function DashboardPage() {
               className="flex items-center justify-center gap-2 px-4 py-2 border border-stone-200 text-stone-600 rounded-lg text-sm font-medium hover:bg-stone-50 transition-colors"
             >
               <Upload className="w-4 h-4" />
-              Import CSV
+              Import Contacts
             </Link>
           </div>
         </div>

@@ -11,6 +11,7 @@ interface AppState {
   profile: Profile | null;
   org: Organization | null;
   loading: boolean;
+  dataLoading: boolean;
 
   // Data
   contacts: Contact[];
@@ -57,6 +58,7 @@ export const useStore = create<AppState>((set, get) => ({
   profile: null,
   org: null,
   loading: true,
+  dataLoading: true,
   contacts: [],
   prospects: [],
   aftercareCases: [],
@@ -82,13 +84,19 @@ export const useStore = create<AppState>((set, get) => ({
 
       // Fetch data
       if (profile) {
-        get().fetchContacts();
-        get().fetchProspects();
-        get().fetchAftercareCases();
+        set({ dataLoading: true });
+        await Promise.all([
+          get().fetchContacts(),
+          get().fetchProspects(),
+          get().fetchAftercareCases(),
+        ]);
+        set({ dataLoading: false });
+      } else {
+        set({ dataLoading: false });
       }
     } catch (err) {
       console.error('initialize error:', err);
-      set({ loading: false });
+      set({ loading: false, dataLoading: false });
     }
   },
 
@@ -222,13 +230,14 @@ export const useStore = create<AppState>((set, get) => ({
     const supabase = createClient();
     const { user } = get();
     if (!user) return;
-    await supabase.from('activities').insert({
+    const { error } = await supabase.from('activities').insert({
       prospect_id: prospectId,
       contact_id: contactId,
       user_id: user.id,
       activity_type: type,
       note,
     });
+    if (error) { console.error(error); emitToast('Failed to log activity', 'error'); return; }
 
     // Update last_contact_date on prospect
     if (prospectId) {
@@ -241,6 +250,7 @@ export const useStore = create<AppState>((set, get) => ({
         ),
       });
     }
+    emitToast('Activity logged', 'success');
   },
 
   fetchActivities: async (contactId) => {

@@ -6,9 +6,10 @@ import { cn, formatDate, contactName } from '@/lib/utils';
 import { Plus, Heart, ArrowRightLeft, Check, SkipForward, Phone, Mail, FileText } from 'lucide-react';
 import { differenceInDays, parseISO } from 'date-fns';
 import type { AftercareTouchpoint, AftercareCase } from '@/types/database';
+import { AftercareSkeleton } from '@/components/PageSkeleton';
 
 export default function AftercarePage() {
-  const { aftercareCases, contacts, createAftercareCase, updateTouchpoint, convertToProspect } = useStore();
+  const { aftercareCases, contacts, dataLoading, createAftercareCase, updateTouchpoint, convertToProspect } = useStore();
   const [showNew, setShowNew] = useState(false);
 
   // New case form
@@ -36,6 +37,20 @@ export default function AftercarePage() {
     setServiceDate('');
     setShowNew(false);
     setSaving(false);
+  }
+
+  if (dataLoading) {
+    return (
+      <div>
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <div className="h-5 w-24 bg-stone-100 rounded animate-pulse" />
+            <div className="h-3.5 w-36 bg-stone-50 rounded mt-2 animate-pulse" />
+          </div>
+        </div>
+        <AftercareSkeleton />
+      </div>
+    );
   }
 
   return (
