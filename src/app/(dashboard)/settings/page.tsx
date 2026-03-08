@@ -22,12 +22,15 @@ export default function SettingsPage() {
     if (profile?.timezone) setTimezone(profile.timezone);
   }, [profile?.full_name, profile?.digest_time, profile?.timezone]);
 
+  // BUG-034: Save org and profile in parallel; only show saved state if both succeed
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
     try {
-      await updateOrg({ name: orgName });
-      await updateProfile({ full_name: fullName, digest_time: digestTime, timezone: timezone });
+      await Promise.all([
+        updateOrg({ name: orgName }),
+        updateProfile({ full_name: fullName, digest_time: digestTime, timezone: timezone }),
+      ]);
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
     } finally {

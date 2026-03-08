@@ -6,7 +6,10 @@ import { X } from 'lucide-react';
 import type { DispositionPreference, LeadSource } from '@/types/database';
 
 export default function NewProspectModal({ onClose }: { onClose: () => void }) {
-  const { contacts, createContact, createProspect } = useStore();
+  const { contacts, prospects, createContact, createProspect } = useStore();
+
+  // BUG-025: Filter out contacts that already have a prospect
+  const availableContacts = contacts.filter(c => !prospects.some(p => p.contact_id === c.id));
   const [mode, setMode] = useState<'existing' | 'new'>('new');
   const [selectedContactId, setSelectedContactId] = useState('');
 
@@ -132,7 +135,7 @@ export default function NewProspectModal({ onClose }: { onClose: () => void }) {
                 className="w-full px-3 py-1.5 border border-stone-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-stone-900"
               >
                 <option value="">Choose a contact...</option>
-                {contacts.map(c => (
+                {availableContacts.map(c => (
                   <option key={c.id} value={c.id}>
                     {c.first_name} {c.last_name}
                   </option>

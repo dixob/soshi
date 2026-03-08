@@ -23,11 +23,24 @@ export default function ProspectDetail({
   const [followupNote, setFollowupNote] = useState(prospect?.followup_note || '');
   const [saving, setSaving] = useState(false);
 
+  // BUG-027: Sync followup fields when the underlying prospect data changes
+  useEffect(() => {
+    setFollowupDate(prospect?.next_followup_date || '');
+    setFollowupNote(prospect?.followup_note || '');
+  }, [prospect?.next_followup_date, prospect?.followup_note]);
+
   useEffect(() => {
     if (prospect?.contact_id) {
       fetchActivities(prospect.contact_id).then(setActivities);
     }
   }, [prospect?.contact_id, fetchActivities]);
+
+  // BUG-035: Close slide-over on Escape key
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [onClose]);
 
   if (!prospect) return null;
   const name = prospect.contact ? contactName(prospect.contact) : 'Unknown';

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState } from 'react';
 import { useStore } from '@/lib/store';
 import Papa from 'papaparse';
 import { FIELD_MAPPINGS, autoMapColumns } from '@/lib/import-fields';
@@ -43,6 +43,12 @@ export default function ImportPage() {
       skipEmptyLines: true,
       complete: (results) => {
         const data = results.data as Record<string, string>[];
+        // BUG-040: Enforce same 1000-row limit as Excel parser
+        if (data.length > 1000) {
+          setError('File has more than 1,000 rows. Please split into smaller files.');
+          setStage('hub');
+          return;
+        }
         const hdrs = results.meta.fields || [];
         applyParsedData({ headers: hdrs, rows: data });
       },
@@ -90,15 +96,17 @@ export default function ImportPage() {
     e.target.value = '';
   }
 
-  const handleDrop = useCallback((e: React.DragEvent) => {
+  // BUG-026: Remove empty deps — handleFile reference changes, causing stale closure
+  function handleDrop(e: React.DragEvent) {
     e.preventDefault();
     setDragOver(false);
     const file = e.dataTransfer.files[0];
     if (file) handleFile(file);
-  }, []);
+  }
 
+  // BUG-036: Guard against double-click — check stage before proceeding
   async function handleImport() {
-    if (!mappings.first_name) return;
+    if (!mappings.first_name || stage === 'importing') return;
     setStage('importing');
     let imported = 0;
     let errors = 0;

@@ -57,7 +57,13 @@ ${text}`,
   const jsonMatch = jsonStr.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
   if (jsonMatch) jsonStr = jsonMatch[1];
 
-  const parsed = JSON.parse(jsonStr);
+  // BUG-039: Handle malformed AI response gracefully
+  let parsed;
+  try {
+    parsed = JSON.parse(jsonStr);
+  } catch {
+    throw new Error('Could not parse AI response. Please try again or use a different file format.');
+  }
 
   if (parsed.error || !parsed.rows?.length) {
     throw new Error(parsed.error || 'No contact data found in PDF');

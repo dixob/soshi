@@ -171,7 +171,7 @@ Full report: `QA-BUG-REPORT.md` (75 bugs across P0/P1/P2/P3)
 - [x] BUG-016: Split profiles RLS into SELECT (org-wide) / INSERT+UPDATE+DELETE (own-row)
 - [x] BUG-017: Split organizations RLS into SELECT / INSERT+UPDATE+DELETE (owner restriction)
 
-**P2 — Medium (9/30 complete, 21 remaining):**
+**P2 — Medium (23/30 complete, 7 remaining):**
 - [x] BUG-028: Fixed midnight-crossing window check in digest time comparison
 - [x] BUG-031: Added `escapeHtml()` helper for XSS prevention in digest email
 - [x] BUG-032: Added saving/disabled state to settings save button
@@ -181,12 +181,26 @@ Full report: `QA-BUG-REPORT.md` (75 bugs across P0/P1/P2/P3)
 - [x] BUG-020: Fixed timezone off-by-one in daysSince/formatRelative (UTC date-only vs local time)
 - [x] BUG-021: Added contact update propagation to nested prospect/aftercare contact objects
 - [x] BUG-022: Added cellToString() helper to extract display values from Excel formula/rich-text/hyperlink cells
-- [ ] BUG-023–027, 029, 030, 034–047: See QA-BUG-REPORT.md
+- [x] BUG-023: Fixed aftercare overdue calc to use timezone-safe daysSince (removed raw differenceInDays/parseISO)
+- [x] BUG-024: Fixed dashboard overdue/dueToday/touchpoint comparisons to use timezone-safe daysSince
+- [x] BUG-025: Filtered existing-contact dropdown in NewProspectModal to exclude contacts with existing prospects
+- [x] BUG-026: Fixed stale closure in import handleDrop (useCallback with empty deps)
+- [x] BUG-027: Added useEffect sync for ProspectDetail followup fields when prospect data changes
+- [x] BUG-029: Added Escape key handler to close mobile sidebar menu
+- [x] BUG-030: Added null guards for first_name/last_name in contact search filter
+- [x] BUG-034: Parallelized settings save (org + profile) so partial failures don't show false success
+- [x] BUG-035: Added Escape key handler to close ProspectDetail slide-over
+- [x] BUG-036: Added double-click guard to import handleImport (checks stage before proceeding)
+- [x] BUG-037: Added loading/disabled state to aftercare convert-to-prospect button
+- [x] BUG-038: Dashboard getContactForProspect now prefers nested p.contact from Supabase join
+- [x] BUG-039: Added JSON parse try/catch to PDF parser for malformed AI responses
+- [x] BUG-040: Added 1000-row limit to CSV import (matching Excel parser limit)
+- [ ] BUG-041–047: Remaining P2 bugs (deferred)
 
 **P3 — Low (0/28, deferred):**
 - [ ] BUG-048–075: See QA-BUG-REPORT.md
 
-**Files modified (14):** schema.sql, middleware.ts, store.ts, database.ts, WelcomeTour.tsx, pipeline/page.tsx, settings/page.tsx, import/page.tsx, digest/route.ts, Sidebar.tsx, vercel.json, auth/callback/page.tsx, utils.ts, parse-excel.ts
+**Files modified (20):** schema.sql, middleware.ts, store.ts, database.ts, WelcomeTour.tsx, pipeline/page.tsx, settings/page.tsx, import/page.tsx, digest/route.ts, Sidebar.tsx, vercel.json, auth/callback/page.tsx, utils.ts, parse-excel.ts, aftercare/page.tsx, dashboard/page.tsx, NewProspectModal.tsx, ProspectDetail.tsx, contacts/page.tsx, parse-pdf.ts
 
 ⚠️ **Supabase action required:** Re-run `schema.sql` in Supabase SQL Editor to apply schema changes (new columns on activities/aftercare_touchpoints, updated RLS policies).
 

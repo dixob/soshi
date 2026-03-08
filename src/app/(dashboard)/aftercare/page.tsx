@@ -2,9 +2,8 @@
 
 import { useState } from 'react';
 import { useStore } from '@/lib/store';
-import { cn, formatDate, contactName } from '@/lib/utils';
+import { cn, formatDate, contactName, daysSince } from '@/lib/utils';
 import { Plus, Heart, ArrowRightLeft, Check, SkipForward, Phone, Mail, FileText } from 'lucide-react';
-import { differenceInDays, parseISO } from 'date-fns';
 import type { AftercareTouchpoint, AftercareCase } from '@/types/database';
 import { AftercareSkeleton } from '@/components/PageSkeleton';
 
@@ -21,10 +20,10 @@ export default function AftercarePage() {
   const activeCases = aftercareCases.filter(c => c.status === 'active');
   const completedCases = aftercareCases.filter(c => c.status !== 'active');
 
-  // Count overdue touchpoints
+  // BUG-023: Use timezone-safe daysSince instead of raw differenceInDays/parseISO
   const overdueCount = activeCases.reduce((acc, c) => {
     return acc + (c.touchpoints?.filter(tp =>
-      tp.status === 'pending' && differenceInDays(new Date(), parseISO(tp.due_date)) > 0
+      tp.status === 'pending' && (daysSince(tp.due_date) ?? 0) > 0
     ).length || 0);
   }, 0);
 
@@ -182,10 +181,12 @@ function CaseCard({
 }: {
   ac: AftercareCase;
   onUpdateTouchpoint: (id: string, data: Partial<AftercareTouchpoint>) => Promise<void>;
-  onConvert: () => void;
+  onConvert: () => void | Promise<void>;
 }) {
   const [expanded, setExpanded] = useState(true);
   const [actionNote, setActionNote] = useState<Record<string, string>>({});
+  // BUG-037: Track converting state to prevent double-clicks
+  const [converting, setConverting] = useState(false);
 
   const sortedTouchpoints = [...(ac.touchpoints || [])].sort(
     (a: AftercareTouchpoint, b: AftercareTouchpoint) => a.due_date.localeCompare(b.due_date)
@@ -207,12 +208,13 @@ function CaseCard({
         </div>
         <div className="flex items-center gap-2">
           <button
-            onClick={(e) => { e.stopPropagation(); onConvert(); }}
-            className="flex items-center gap-1 px-2 py-1 text-xs text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
+            onClick={async (e) => { e.stopPropagation(); setConverting(true); await onConvert(); setConverting(false); }}
+            disabled={converting}
+            className="flex items-center gap-1 px-2 py-1 text-xs text-blue-600 hover:bg-blue-50 rounded-md transition-colors disabled:opacity-50"
             title="Convert family to preneed prospect"
           >
             <ArrowRightLeft className="w-3.5 h-3.5" />
-            Convert to Prospect
+            {converting ? 'Converting...' : 'Convert to Prospect'}
           </button>
         </div>
       </div>
@@ -221,7 +223,7 @@ function CaseCard({
         <div className="border-t border-stone-100 px-4 py-3">
           <div className="space-y-3">
             {sortedTouchpoints.map((tp: AftercareTouchpoint) => {
-              const overdue = tp.status === 'pending' && differenceInDays(new Date(), parseISO(tp.due_date)) > 0;
+              const overdue = tp.status === 'pending' && (daysSince(tp.due_date) ?? 0) > 0;
               return (
                 <div key={tp.id} className={cn('flex items-start gap-3 py-2', overdue && 'bg-red-50 -mx-2 px-2 rounded')}>
                   {/* Status indicator */}
