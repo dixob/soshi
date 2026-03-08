@@ -7,16 +7,16 @@ import { createClient } from '@/lib/supabase';
 /**
  * Client-side auth callback handler.
  *
- * Supabase magic-link flow (PKCE):
- *   1. User clicks magic link -> Supabase verifies -> redirects here with ?code=…
- *   2. Browser client exchanges the code for a session (reads the code-verifier
- *      cookie it stored earlier during signInWithOtp).
- *   3. On success, full-page navigate to /dashboard so middleware + server
- *      components pick up the fresh session cookies.
+ * Supports two flows:
+ *   Implicit (current): Supabase redirects here with tokens in the URL hash
+ *     fragment (#access_token=…). The browser client auto-detects and sets the
+ *     session. Works cross-device (magic link opened on phone after requesting
+ *     on laptop).
+ *   PKCE (legacy): Redirects here with ?code=… which is exchanged for a session
+ *     using a code-verifier cookie. Kept for backward compat with in-flight links.
  *
- * Using a client-side page (instead of a Route Handler) avoids a known issue
- * where Set-Cookie headers on a NextResponse.redirect() can be dropped by
- * some browsers / Next.js versions, causing a redirect loop.
+ * Uses a client-side page (not a Route Handler) to avoid Set-Cookie headers
+ * being dropped on NextResponse.redirect() in some browsers / Next.js versions.
  */
 function CallbackHandler() {
   const router = useRouter();
@@ -37,35 +37,51 @@ function CallbackHandler() {
       return;
     }
 
+    const supabase = createClient();
     const code = searchParams.get('code');
 
     // BUG-044: Preserve redirectTo parameter through callback
     const redirectTo = searchParams.get('redirectTo');
     const destination = redirectTo && redirectTo.startsWith('/') ? redirectTo : '/dashboard';
 
-    if (!code) {
-      // No code and no error — check if there's already a session
-      // (handles edge cases like implicit flow or repeat visits).
-      const supabase = createClient();
-      supabase.auth.getUser().then(({ data: { user } }) => {
-        window.location.href = user ? destination : '/login';
-      });
+    if (code) {
+      // PKCE flow (backward compat for any in-flight magic links
+      // issued before the switch to implicit flow).
+      supabase.auth
+        .exchangeCodeForSession(code)
+        .then(({ error }) => {
+          if (error) {
+            console.error('[auth/callback] Code exchange failed:', error.message);
+            router.replace('/login?error=auth_failed');
+          } else {
+            window.location.href = destination;
+          }
+        });
       return;
     }
 
-    // PKCE flow — exchange the authorization code for a session.
-    const supabase = createClient();
-    supabase.auth
-      .exchangeCodeForSession(code)
-      .then(({ error }) => {
-        if (error) {
-          console.error('[auth/callback] Code exchange failed:', error.message);
-          router.replace('/login?error=auth_failed');
-        } else {
-          // Full-page reload so middleware sees the new cookies.
-          window.location.href = destination;
+    // Implicit flow: tokens arrive in the URL hash fragment.
+    // createBrowserClient auto-detects and processes them.
+    // onAuthStateChange fires INITIAL_SESSION once complete.
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN') {
+          subscription.unsubscribe();
+          window.location.href = session ? destination : '/login';
         }
-      });
+      }
+    );
+
+    // Safety timeout — if nothing fires within 10s, send to login
+    const timeout = setTimeout(() => {
+      subscription.unsubscribe();
+      window.location.href = '/login';
+    }, 10000);
+
+    return () => {
+      clearTimeout(timeout);
+      subscription.unsubscribe();
+    };
   }, [searchParams, router]);
 
   return (

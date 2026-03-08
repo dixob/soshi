@@ -34,7 +34,7 @@ function SignupForm() {
     setLoading(true);
     setError('');
     const supabase = createClient();
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
@@ -42,6 +42,14 @@ function SignupForm() {
 
     if (error) {
       setError(error.message);
+    } else if (data.user && data.user.identities?.length === 0) {
+      // Supabase returns a fake success with empty identities when the
+      // email is already registered (to prevent enumeration). No email is sent.
+      setError('An account with this email already exists. Try signing in instead.');
+    } else if (data.session) {
+      // Email confirmation is disabled — user is signed in immediately
+      window.location.href = '/dashboard';
+      return;
     } else {
       setSuccess(true);
     }
@@ -68,6 +76,9 @@ function SignupForm() {
         <p className="text-emerald-800 font-medium">Check your email</p>
         <p className="text-emerald-600 text-sm mt-1">
           We sent a confirmation link to <strong>{email}</strong>. Click it to activate your account.
+        </p>
+        <p className="text-emerald-500 text-xs mt-2">
+          Don&apos;t see it? Check your spam folder. The email may take a minute to arrive.
         </p>
       </div>
     );
