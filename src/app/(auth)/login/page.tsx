@@ -53,7 +53,9 @@ function LoginForm() {
         ? 'Invalid email or password. Please try again.'
         : error.message);
     } else {
-      window.location.href = '/dashboard';
+      // BUG-044: Redirect to the originally requested page if redirectTo param exists
+      const redirectTo = searchParams.get('redirectTo');
+      window.location.href = redirectTo && redirectTo.startsWith('/') ? redirectTo : '/dashboard';
       return;
     }
     setLoading(false);
@@ -64,9 +66,13 @@ function LoginForm() {
     setLoading(true);
     setError('');
     const supabase = createClient();
+    // BUG-044: Pass redirectTo through magic link callback
+    const redirectTo = searchParams.get('redirectTo');
+    const callbackUrl = new URL('/auth/callback', window.location.origin);
+    if (redirectTo && redirectTo.startsWith('/')) callbackUrl.searchParams.set('redirectTo', redirectTo);
     const { error } = await supabase.auth.signInWithOtp({
       email,
-      options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
+      options: { emailRedirectTo: callbackUrl.toString() },
     });
     if (error) setError(error.message);
     else setMagicSent(true);

@@ -22,12 +22,27 @@ export default function ProspectDetail({
   const [followupDate, setFollowupDate] = useState(prospect?.next_followup_date || '');
   const [followupNote, setFollowupNote] = useState(prospect?.followup_note || '');
   const [saving, setSaving] = useState(false);
+  // BUG-046: Separate loading state for followup save
+  const [savingFollowup, setSavingFollowup] = useState(false);
+
+  // BUG-027: Sync followup fields when the underlying prospect data changes
+  useEffect(() => {
+    setFollowupDate(prospect?.next_followup_date || '');
+    setFollowupNote(prospect?.followup_note || '');
+  }, [prospect?.next_followup_date, prospect?.followup_note]);
 
   useEffect(() => {
     if (prospect?.contact_id) {
       fetchActivities(prospect.contact_id).then(setActivities);
     }
   }, [prospect?.contact_id, fetchActivities]);
+
+  // BUG-035: Close slide-over on Escape key
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [onClose]);
 
   if (!prospect) return null;
   const name = prospect.contact ? contactName(prospect.contact) : 'Unknown';
@@ -44,10 +59,12 @@ export default function ProspectDetail({
   }
 
   async function handleSaveFollowup() {
+    setSavingFollowup(true);
     await updateProspect(prospect!.id, {
       next_followup_date: followupDate || null,
       followup_note: followupNote || null,
     });
+    setSavingFollowup(false);
   }
 
   return (
@@ -135,9 +152,10 @@ export default function ProspectDetail({
               />
               <button
                 onClick={handleSaveFollowup}
-                className="px-3 py-1.5 bg-stone-900 text-white rounded-md text-xs font-medium hover:bg-stone-800"
+                disabled={savingFollowup}
+                className="px-3 py-1.5 bg-stone-900 text-white rounded-md text-xs font-medium hover:bg-stone-800 disabled:opacity-50"
               >
-                Save
+                {savingFollowup ? 'Saving...' : 'Save'}
               </button>
             </div>
             <input

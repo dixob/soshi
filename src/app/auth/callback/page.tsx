@@ -39,12 +39,16 @@ function CallbackHandler() {
 
     const code = searchParams.get('code');
 
+    // BUG-044: Preserve redirectTo parameter through callback
+    const redirectTo = searchParams.get('redirectTo');
+    const destination = redirectTo && redirectTo.startsWith('/') ? redirectTo : '/dashboard';
+
     if (!code) {
       // No code and no error — check if there's already a session
       // (handles edge cases like implicit flow or repeat visits).
       const supabase = createClient();
       supabase.auth.getUser().then(({ data: { user } }) => {
-        window.location.href = user ? '/dashboard' : '/login';
+        window.location.href = user ? destination : '/login';
       });
       return;
     }
@@ -59,7 +63,7 @@ function CallbackHandler() {
           router.replace('/login?error=auth_failed');
         } else {
           // Full-page reload so middleware sees the new cookies.
-          window.location.href = '/dashboard';
+          window.location.href = destination;
         }
       });
   }, [searchParams, router]);

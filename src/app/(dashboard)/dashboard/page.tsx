@@ -89,14 +89,14 @@ export default function DashboardPage() {
   }, [fetchContacts, fetchProspects, fetchAftercareCases]);
 
   const stats = useMemo(() => {
-    const now = new Date();
     const totalProspects = prospects.length;
     const converted = prospects.filter((p) => p.stage === 'converted').length;
     const conversionRate = totalProspects > 0 ? Math.round((converted / totalProspects) * 100) : 0;
 
+    // BUG-024: Use timezone-safe daysSince for date-only string comparisons
     const overdue = prospects.filter((p) => {
       if (p.stage === 'converted') return false;
-      if (p.next_followup_date && new Date(p.next_followup_date) < now) return true;
+      if (p.next_followup_date && (daysSince(p.next_followup_date) ?? 0) > 0) return true;
       const days = p.last_contact_date ? daysSince(p.last_contact_date) : null;
       if (days !== null && days > 30) return true;
       return false;
@@ -104,8 +104,7 @@ export default function DashboardPage() {
 
     const dueToday = prospects.filter((p) => {
       if (p.stage === 'converted' || !p.next_followup_date) return false;
-      const d = new Date(p.next_followup_date);
-      return d.toDateString() === now.toDateString();
+      return daysSince(p.next_followup_date) === 0;
     });
 
     const stagesWithCounts = PIPELINE_STAGES.map((s) => ({
@@ -121,7 +120,7 @@ export default function DashboardPage() {
     const overdueTouchpoints = aftercareCases.reduce((count, c) => {
       if (!c.touchpoints) return count;
       return count + c.touchpoints.filter(
-        (t) => t.status === 'pending' && new Date(t.due_date) < now
+        (t) => t.status === 'pending' && (daysSince(t.due_date) ?? 0) > 0
       ).length;
     }, 0);
 
@@ -139,8 +138,10 @@ export default function DashboardPage() {
     };
   }, [prospects, contacts, aftercareCases]);
 
+  // BUG-038: Use the nested contact from the Supabase join instead of manual lookup
+  // This ensures data stays in sync after BUG-021 propagation fix
   const getContactForProspect = (p: PreneedProspect) => {
-    return contacts.find((c) => c.id === p.contact_id);
+    return p.contact || contacts.find((c) => c.id === p.contact_id);
   };
 
   // Checklist items — computed from live store state
@@ -268,8 +269,7 @@ export default function DashboardPage() {
                 (p) => !stats.dueToday.find((d) => d.id === p.id)
               )].slice(0, 8).map((p) => {
                 const c = getContactForProspect(p);
-                const isOverdue = p.next_followup_date && new Date(p.next_followup_date) < new Date() &&
-                  new Date(p.next_followup_date).toDateString() !== new Date().toDateString();
+                const isOverdue = p.next_followup_date && (daysSince(p.next_followup_date) ?? 0) > 0;
                 return (
                   <Link
                     key={p.id}

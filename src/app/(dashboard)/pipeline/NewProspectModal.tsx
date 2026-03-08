@@ -1,12 +1,22 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useStore } from '@/lib/store';
 import { X } from 'lucide-react';
 import type { DispositionPreference, LeadSource } from '@/types/database';
 
 export default function NewProspectModal({ onClose }: { onClose: () => void }) {
-  const { contacts, createContact, createProspect } = useStore();
+  const { contacts, prospects, createContact, createProspect } = useStore();
+
+  // BUG-025: Filter out contacts that already have a prospect
+  const availableContacts = contacts.filter(c => !prospects.some(p => p.contact_id === c.id));
+
+  // BUG-041: Close modal on Escape key
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [onClose]);
   const [mode, setMode] = useState<'existing' | 'new'>('new');
   const [selectedContactId, setSelectedContactId] = useState('');
 
@@ -56,8 +66,8 @@ export default function NewProspectModal({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30" onClick={onClose}>
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between p-4 border-b border-stone-100">
           <h2 className="font-semibold text-stone-900">New Prospect</h2>
           <button onClick={onClose} className="p-1 text-stone-400 hover:text-stone-600">
@@ -132,7 +142,7 @@ export default function NewProspectModal({ onClose }: { onClose: () => void }) {
                 className="w-full px-3 py-1.5 border border-stone-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-stone-900"
               >
                 <option value="">Choose a contact...</option>
-                {contacts.map(c => (
+                {availableContacts.map(c => (
                   <option key={c.id} value={c.id}>
                     {c.first_name} {c.last_name}
                   </option>

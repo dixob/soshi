@@ -112,8 +112,12 @@ export const useStore = create<AppState>((set, get) => ({
   // --- Contacts ---
   fetchContacts: async () => {
     const supabase = createClient();
+    const { org } = get();
+    // BUG-043: Guard against null org (e.g. during onboarding or before init completes)
+    if (!org) return;
+    // BUG-019: Filter by org_id for defense-in-depth (supplements RLS)
     const { data } = await supabase
-      .from('contacts').select('*').order('created_at', { ascending: false });
+      .from('contacts').select('*').eq('org_id', org.id).order('created_at', { ascending: false });
     set({ contacts: data || [] });
   },
 
@@ -134,6 +138,15 @@ export const useStore = create<AppState>((set, get) => ({
     const { error } = await supabase.from('contacts').update(data).eq('id', id);
     if (error) { console.error(error); emitToast('Failed to update contact', 'error'); return; }
     set({ contacts: get().contacts.map(c => c.id === id ? { ...c, ...data } : c) });
+    // BUG-021: Propagate contact changes to nested contact objects in prospects and aftercare cases
+    set({
+      prospects: get().prospects.map(p =>
+        p.contact_id === id && p.contact ? { ...p, contact: { ...p.contact, ...data } } : p
+      ),
+      aftercareCases: get().aftercareCases.map(ac =>
+        ac.contact_id === id && ac.contact ? { ...ac, contact: { ...ac.contact, ...data } } : ac
+      ),
+    });
     emitToast('Contact updated', 'success');
   },
 
@@ -153,9 +166,13 @@ export const useStore = create<AppState>((set, get) => ({
   // --- Prospects ---
   fetchProspects: async () => {
     const supabase = createClient();
+    const { org } = get();
+    if (!org) return;
+    // BUG-019: Filter by org_id for defense-in-depth (supplements RLS)
     const { data } = await supabase
       .from('preneed_prospects')
       .select('*, contact:contacts(*)')
+      .eq('org_id', org.id)
       .order('created_at', { ascending: false });
     set({ prospects: data || [] });
   },
@@ -206,9 +223,10 @@ export const useStore = create<AppState>((set, get) => ({
 
     const previousStage = prospect.stage;
     const stageLabel = stage.replaceAll('_', ' ');
+    // BUG-042: Don't update last_contact_date on stage moves — it's not a real contact.
+    // Only actual activities (call, email, meeting) should update this metric.
     const updates: Partial<PreneedProspect> = {
       stage: stage as PreneedProspect['stage'],
-      last_contact_date: format(new Date(), 'yyyy-MM-dd'),
     };
     if (stage === 'converted') updates.converted_at = new Date().toISOString();
 
@@ -277,9 +295,13 @@ export const useStore = create<AppState>((set, get) => ({
 
   fetchActivities: async (contactId) => {
     const supabase = createClient();
+    const { org } = get();
+    if (!org) return [];
+    // BUG-019: Filter by org_id for defense-in-depth (supplements RLS)
     const { data } = await supabase
       .from('activities')
       .select('*')
+      .eq('org_id', org.id)
       .eq('contact_id', contactId)
       .order('created_at', { ascending: false });
     return data || [];
@@ -288,9 +310,13 @@ export const useStore = create<AppState>((set, get) => ({
   // --- Aftercare ---
   fetchAftercareCases: async () => {
     const supabase = createClient();
+    const { org } = get();
+    if (!org) return;
+    // BUG-019: Filter by org_id for defense-in-depth (supplements RLS)
     const { data } = await supabase
       .from('aftercare_cases')
       .select('*, contact:contacts(*), touchpoints:aftercare_touchpoints(*)')
+      .eq('org_id', org.id)
       .order('service_date', { ascending: false });
     set({ aftercareCases: data || [] });
   },
@@ -345,6 +371,13 @@ export const useStore = create<AppState>((set, get) => ({
   convertToProspect: async (caseId) => {
     const ac = get().aftercareCases.find(c => c.id === caseId);
     if (!ac) return;
+
+    // BUG-018: Guard against duplicate conversion
+    const existingProspect = get().prospects.find(p => p.contact_id === ac.contact_id);
+    if (existingProspect) {
+      emitToast('This contact already has a prospect record', 'error');
+      return;
+    }
 
     // Create prospect from aftercare contact (createProspect already emits its own toast)
     await get().createProspect({

@@ -26,11 +26,12 @@ export default function ContactsPage() {
     if (confirm(msg)) deleteContact(id);
   }
 
+  // BUG-030: Guard against null/undefined name fields from imported data
   const filtered = contacts.filter(c => {
     const q = search.toLowerCase();
     return (
-      c.first_name.toLowerCase().includes(q) ||
-      c.last_name.toLowerCase().includes(q) ||
+      (c.first_name || '').toLowerCase().includes(q) ||
+      (c.last_name || '').toLowerCase().includes(q) ||
       (c.email || '').toLowerCase().includes(q) ||
       (c.phone || '').includes(q)
     );

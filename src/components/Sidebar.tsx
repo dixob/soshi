@@ -15,7 +15,7 @@ import {
   Menu,
   X,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -30,6 +30,14 @@ export default function Sidebar() {
   const pathname = usePathname();
   const { org, signOut } = useStore();
   const [mobileOpen, setMobileOpen] = useState(false);
+
+  // BUG-029: Close mobile menu on Escape key
+  useEffect(() => {
+    if (!mobileOpen) return;
+    const handleKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setMobileOpen(false); };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [mobileOpen]);
 
   return (
     <>
