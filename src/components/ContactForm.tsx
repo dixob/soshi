@@ -20,19 +20,23 @@ export default function ContactForm({ initial, onSave, onCancel, title }: Contac
   const [notes, setNotes] = useState(initial?.relationship_notes || '');
   const [saving, setSaving] = useState(false);
 
+  // BUG-045: Use try/finally so saving state resets even if onSave throws
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
-    await onSave({
-      first_name: firstName,
-      last_name: lastName,
-      phone: phone || null,
-      email: email || null,
-      address: address || null,
-      communication_pref: commPref || null,
-      relationship_notes: notes || null,
-    });
-    setSaving(false);
+    try {
+      await onSave({
+        first_name: firstName,
+        last_name: lastName,
+        phone: phone || null,
+        email: email || null,
+        address: address || null,
+        communication_pref: commPref || null,
+        relationship_notes: notes || null,
+      });
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (

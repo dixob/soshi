@@ -113,9 +113,11 @@ export const useStore = create<AppState>((set, get) => ({
   fetchContacts: async () => {
     const supabase = createClient();
     const { org } = get();
+    // BUG-043: Guard against null org (e.g. during onboarding or before init completes)
+    if (!org) return;
     // BUG-019: Filter by org_id for defense-in-depth (supplements RLS)
     const { data } = await supabase
-      .from('contacts').select('*').eq('org_id', org!.id).order('created_at', { ascending: false });
+      .from('contacts').select('*').eq('org_id', org.id).order('created_at', { ascending: false });
     set({ contacts: data || [] });
   },
 
@@ -165,11 +167,12 @@ export const useStore = create<AppState>((set, get) => ({
   fetchProspects: async () => {
     const supabase = createClient();
     const { org } = get();
+    if (!org) return;
     // BUG-019: Filter by org_id for defense-in-depth (supplements RLS)
     const { data } = await supabase
       .from('preneed_prospects')
       .select('*, contact:contacts(*)')
-      .eq('org_id', org!.id)
+      .eq('org_id', org.id)
       .order('created_at', { ascending: false });
     set({ prospects: data || [] });
   },
@@ -220,9 +223,10 @@ export const useStore = create<AppState>((set, get) => ({
 
     const previousStage = prospect.stage;
     const stageLabel = stage.replaceAll('_', ' ');
+    // BUG-042: Don't update last_contact_date on stage moves — it's not a real contact.
+    // Only actual activities (call, email, meeting) should update this metric.
     const updates: Partial<PreneedProspect> = {
       stage: stage as PreneedProspect['stage'],
-      last_contact_date: format(new Date(), 'yyyy-MM-dd'),
     };
     if (stage === 'converted') updates.converted_at = new Date().toISOString();
 
@@ -292,11 +296,12 @@ export const useStore = create<AppState>((set, get) => ({
   fetchActivities: async (contactId) => {
     const supabase = createClient();
     const { org } = get();
+    if (!org) return [];
     // BUG-019: Filter by org_id for defense-in-depth (supplements RLS)
     const { data } = await supabase
       .from('activities')
       .select('*')
-      .eq('org_id', org!.id)
+      .eq('org_id', org.id)
       .eq('contact_id', contactId)
       .order('created_at', { ascending: false });
     return data || [];
@@ -306,11 +311,12 @@ export const useStore = create<AppState>((set, get) => ({
   fetchAftercareCases: async () => {
     const supabase = createClient();
     const { org } = get();
+    if (!org) return;
     // BUG-019: Filter by org_id for defense-in-depth (supplements RLS)
     const { data } = await supabase
       .from('aftercare_cases')
       .select('*, contact:contacts(*), touchpoints:aftercare_touchpoints(*)')
-      .eq('org_id', org!.id)
+      .eq('org_id', org.id)
       .order('service_date', { ascending: false });
     set({ aftercareCases: data || [] });
   },

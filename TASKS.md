@@ -171,7 +171,7 @@ Full report: `QA-BUG-REPORT.md` (75 bugs across P0/P1/P2/P3)
 - [x] BUG-016: Split profiles RLS into SELECT (org-wide) / INSERT+UPDATE+DELETE (own-row)
 - [x] BUG-017: Split organizations RLS into SELECT / INSERT+UPDATE+DELETE (owner restriction)
 
-**P2 — Medium (23/30 complete, 7 remaining):**
+**P2 — Medium (30/30 complete):**
 - [x] BUG-028: Fixed midnight-crossing window check in digest time comparison
 - [x] BUG-031: Added `escapeHtml()` helper for XSS prevention in digest email
 - [x] BUG-032: Added saving/disabled state to settings save button
@@ -195,12 +195,18 @@ Full report: `QA-BUG-REPORT.md` (75 bugs across P0/P1/P2/P3)
 - [x] BUG-038: Dashboard getContactForProspect now prefers nested p.contact from Supabase join
 - [x] BUG-039: Added JSON parse try/catch to PDF parser for malformed AI responses
 - [x] BUG-040: Added 1000-row limit to CSV import (matching Excel parser limit)
-- [ ] BUG-041–047: Remaining P2 bugs (deferred)
+- [x] BUG-041: Added Escape key + backdrop click close to NewProspectModal
+- [x] BUG-042: Removed incorrect last_contact_date update from moveProspect (stage move ≠ real contact)
+- [x] BUG-043: Added null org guards to all fetch functions (prevents crash during onboarding)
+- [x] BUG-044: Login now uses redirectTo search param after password/magic-link auth
+- [x] BUG-045: ContactForm handleSubmit wrapped in try/finally to prevent stuck saving state
+- [x] BUG-046: Added loading/disabled state to ProspectDetail follow-up Save button
+- [x] BUG-047: Added null guards for lead_source/disposition_pref in ProspectCard display
 
 **P3 — Low (0/28, deferred):**
 - [ ] BUG-048–075: See QA-BUG-REPORT.md
 
-**Files modified (20):** schema.sql, middleware.ts, store.ts, database.ts, WelcomeTour.tsx, pipeline/page.tsx, settings/page.tsx, import/page.tsx, digest/route.ts, Sidebar.tsx, vercel.json, auth/callback/page.tsx, utils.ts, parse-excel.ts, aftercare/page.tsx, dashboard/page.tsx, NewProspectModal.tsx, ProspectDetail.tsx, contacts/page.tsx, parse-pdf.ts
+**Files modified (22):** schema.sql, middleware.ts, store.ts, database.ts, WelcomeTour.tsx, pipeline/page.tsx, settings/page.tsx, import/page.tsx, digest/route.ts, Sidebar.tsx, vercel.json, auth/callback/page.tsx, utils.ts, parse-excel.ts, aftercare/page.tsx, dashboard/page.tsx, NewProspectModal.tsx, ProspectDetail.tsx, contacts/page.tsx, parse-pdf.ts, login/page.tsx, ContactForm.tsx
 
 ⚠️ **Supabase action required:** Re-run `schema.sql` in Supabase SQL Editor to apply schema changes (new columns on activities/aftercare_touchpoints, updated RLS policies).
 
